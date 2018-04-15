@@ -9,9 +9,7 @@ module Parse.LiveQueryClient.Internal
 
 import Json.Decode as Json exposing (Decoder, Value)
 import Json.Encode as Encode
-import Parse exposing (Config)
-import Parse.Query as Query exposing (Query)
-import WebSocket
+import Parse exposing (Config, Query)
 
 
 type Msg
@@ -152,7 +150,7 @@ subscribe config query requestId =
         List.filterMap identity
             [ Just ( "op", Encode.string "subscribe" )
             , Just ( "requestId", Encode.int requestId )
-            , Just ( "query", Query.encodeQuery query )
+            , Just ( "query", Parse.encodeQuery query )
             , config.sessionToken
                 |> Maybe.map ((,) "sessionToken" << Encode.string)
             ]

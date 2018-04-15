@@ -19,13 +19,11 @@ module Parse.LiveQueryClient
 
 -}
 
-import Dict exposing (Dict)
 import Json.Decode as Json exposing (Decoder, Value)
 import Json.Encode as Encode
-import Parse exposing (Config)
+import Parse exposing (Config, Query)
 import Parse.LiveQuery as LiveQuery
 import Parse.LiveQueryClient.Internal as Internal
-import Parse.Query as Query exposing (Query)
 import Task exposing (Task)
 import WebSocket
 

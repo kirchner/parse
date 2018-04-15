@@ -9,10 +9,10 @@ import Parse
 import Parse.LiveQuery as LiveQuery
 import Parse.LiveQueryClient as LiveQueryClient
 import Parse.LiveQueryClient.Internal
-import Parse.Query
 import Task
 
 
+main : Program Never Model Msg
 main =
     program
         { init = init
@@ -83,7 +83,7 @@ init =
         , Cmd.batch
             [ liveQueryClientCmds
             , Task.attempt UserInit <|
-                Parse.query "_User" decodeUser restConfig []
+                Parse.query decodeUser restConfig (Parse.emptyQuery "_User")
             ]
         )
 
@@ -173,13 +173,9 @@ type alias User =
     }
 
 
-userQuery : Parse.Query.Query
+userQuery : Parse.Query
 userQuery =
-    Parse.Query.defaultQuery
-        |> \defaultQuery ->
-            { defaultQuery
-                | className = Just "_User"
-            }
+    Parse.emptyQuery "_User"
 
 
 decodeUser : Decoder User

@@ -7,7 +7,7 @@ import Html.Events as Events
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as Decode
 import Json.Encode as Encode exposing (Value)
-import Parse exposing (Error, ObjectId, Param)
+import Parse exposing (Error, ObjectId, Query)
 import Task exposing (Task)
 
 
@@ -178,15 +178,23 @@ update msg model =
 
         FilterFormSubmitted ->
             ( model
-            , getAllEventsWith
-                [ Parse.constraint <|
+            , Parse.query
+                eventDecoder
+                parseConfig
+                { className = "Event"
+                , whereClause =
                     Parse.and
                         [ Parse.regex "title" model.titleQuery
                         , Parse.exists "title"
                         , Parse.regex "description" model.descriptionQuery
                         ]
-                , Parse.count
-                ]
+                , order = []
+                , keys = []
+                , include = []
+                , count = False
+                , limit = Nothing
+                , skip = Nothing
+                }
                 |> Task.attempt
                     (\result ->
                         case result of
@@ -249,12 +257,7 @@ getEvent =
 
 getAllEvents : Task Error (List Event)
 getAllEvents =
-    Parse.query "Event" eventDecoder parseConfig []
-
-
-getAllEventsWith : List Param -> Task Error (List Event)
-getAllEventsWith params =
-    Parse.query "Event" eventDecoder parseConfig params
+    Parse.query eventDecoder parseConfig (Parse.emptyQuery "Event")
 
 
 deleteEvent : ObjectId -> Task Error ()

@@ -13,14 +13,13 @@ module Parse
             )
         , Object
         , ObjectId
-        , Param
+        , Query
         , and
-        , constraint
-        , count
         , create
         , delete
-        , distinct
+        , emptyQuery
         , encodeObjectId
+        , encodeQuery
         , equalTo
         , exists
         , get
@@ -28,7 +27,6 @@ module Parse
         , greaterThanOrEqualTo
         , lessThan
         , lessThanOrEqualTo
-        , limit
         , notEqualTo
         , objectIdDecoder
         , or
@@ -58,14 +56,12 @@ module Parse
 
 # Queries
 
-@docs query
-
-@docs Param, count, limit, distinct
+@docs query, Query, emptyQuery, encodeQuery
 
 
 ## Constraints
 
-@docs Constraint, constraint
+@docs Constraint
 
 @docs and, or, exists
 
@@ -228,44 +224,90 @@ delete className config (ObjectId id) =
 
 {-| -}
 query :
-    String
-    -> Decoder fields
+    Decoder fields
     -> Config
-    -> List Param
+    -> Query
     -> Task Error (List fields)
-query className fieldsDecoder config params =
+query fieldsDecoder config query =
     request config
         { method = "GET"
-        , urlSuffix = className ++ "?" ++ serializeParams params
+        , urlSuffix = query.className ++ "?" ++ serializeQuery query
         , body = Http.emptyBody
         , responseDecoder = Decode.field "results" (Decode.list fieldsDecoder)
         }
 
 
 {-| -}
-type Param
-    = Where Constraint
-    | Count
-    | Limit Int
-    | Distinct String
+type alias Query =
+    { className : String
+    , whereClause : Constraint
+
+    -- RESPONSE
+    , order : List String
+    , keys : List String
+    , include : List String
+    , count : Bool
+
+    -- PAGINATION
+    , limit : Maybe Int
+    , skip : Maybe Int
+    }
 
 
 {-| -}
-count : Param
-count =
-    Count
+emptyQuery : String -> Query
+emptyQuery className =
+    { className = className
+    , whereClause = And []
+    , order = []
+    , keys = []
+    , include = []
+    , count = False
+    , limit = Nothing
+    , skip = Nothing
+    }
 
 
 {-| -}
-limit : Int -> Param
-limit =
-    Limit
+encodeQuery : Query -> Value
+encodeQuery query =
+    let
+        required key value =
+            Just ( key, value )
 
-
-{-| -}
-distinct : String -> Param
-distinct =
-    Distinct
+        optional key encode value =
+            Maybe.map (\value -> ( key, encode value )) value
+    in
+    [ required "className" (Encode.string query.className)
+    , required "where" (encodeConstraint query.whereClause)
+    , if query.include == [] then
+        Nothing
+      else
+        required "include" (Encode.string (String.join "," query.include))
+    , if query.count then
+        required "count" (Encode.int 1)
+      else
+        Nothing
+    , if query.keys == [] then
+        Nothing
+      else
+        required "keys" (Encode.string (String.join "," query.keys))
+    , optional "limit" Encode.int query.limit
+    , query.skip
+        |> Maybe.andThen
+            (\skip ->
+                if skip <= 0 then
+                    Nothing
+                else
+                    required "skip" (Encode.int skip)
+            )
+    , if query.order == [] then
+        Nothing
+      else
+        required "order" (Encode.string (String.join "," query.order))
+    ]
+        |> List.filterMap identity
+        |> Encode.object
 
 
 {-| -}
@@ -296,12 +338,6 @@ type FieldConstraint
    $all         Contains all of the given values
    $text        Performs a full text search on indexed fields
 -}
-
-
-{-| -}
-constraint : Constraint -> Param
-constraint =
-    Where
 
 
 {-| -}
@@ -463,47 +499,59 @@ defaultHeaders config =
         ]
 
 
-serializeParams : List Param -> String
-serializeParams params =
-    params
-        |> List.map serializeParam
+serializeQuery : Query -> String
+serializeQuery query =
+    [ [ "where="
+      , encodeConstraint query.whereClause
+            |> Encode.encode 0
+            |> Http.encodeUri
+      ]
+        |> String.concat
+        |> Just
+    , if List.isEmpty query.order then
+        Nothing
+      else
+        Just (String.join "," query.order)
+    , if List.isEmpty query.keys then
+        Nothing
+      else
+        Just (String.join "," query.keys)
+    , if List.isEmpty query.include then
+        Nothing
+      else
+        Just (String.join "," query.include)
+    , if query.count then
+        Just "count=1"
+      else
+        Nothing
+    , query.limit
+        |> Maybe.map (\limit -> "limit=" ++ toString limit)
+    , query.skip
+        |> Maybe.map (\skip -> "skip=" ++ toString skip)
+    ]
+        |> List.filterMap identity
         |> String.join "&"
 
 
-serializeParam : Param -> String
-serializeParam param =
-    case param of
-        Count ->
-            "count=1"
-
-        Limit limit ->
-            "limit=" ++ toString limit
-
-        Distinct fieldName ->
-            "distinct=" ++ fieldName
-
-        Where constraint ->
-            [ "where="
-            , encodeConstraint constraint
-                |> Encode.object
-                |> Encode.encode 0
-                |> Http.encodeUri
-            ]
-                |> String.concat
-
-
-encodeConstraint : Constraint -> List ( String, Value )
+encodeConstraint : Constraint -> Value
 encodeConstraint constraint =
+    constraint
+        |> encodeConstraintHelp
+        |> Encode.object
+
+
+encodeConstraintHelp : Constraint -> List ( String, Value )
+encodeConstraintHelp constraint =
     case constraint of
         And constraints ->
             constraints
-                |> List.map encodeConstraint
+                |> List.map encodeConstraintHelp
                 |> List.concat
 
         Or constraints ->
             [ ( "$or"
               , constraints
-                    |> List.map (encodeConstraint >> Encode.object)
+                    |> List.map (encodeConstraintHelp >> Encode.object)
                     |> Encode.list
               )
             ]
