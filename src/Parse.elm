@@ -5,12 +5,27 @@ module Parse
         , Error
         , Object
         , ObjectId
+        , Param
+        , and
+        , constraint
+        , count
         , create
         , delete
+        , distinct
         , encodeObjectId
+        , equalTo
+        , exists
         , get
+        , greaterThan
+        , greaterThanOrEqualTo
+        , lessThan
+        , lessThanOrEqualTo
+        , limit
+        , notEqualTo
         , objectIdDecoder
+        , or
         , query
+        , regex
         , update
         )
 
@@ -24,12 +39,25 @@ module Parse
 
 # Objects
 
-@docs Object, ObjectId, objectIdDecoder, objectIdEncoder
+@docs Object, ObjectId, objectIdDecoder, encodeObjectId
 
 
 # REST Actions
 
 @docs create, get, update, delete
+
+
+# Queries
+
+@docs query
+
+@docs Param, count, limit, distinct, constraint
+
+@docs and, or, exists
+
+@docs equalTo, notEqualTo, regex
+
+@docs lessThan, lessThanOrEqualTo, greaterThan, greaterThanOrEqualTo
 
 
 # Errors
@@ -120,7 +148,7 @@ get :
 get className fieldsDecoder config (ObjectId id) =
     request config
         { method = "GET"
-        , urlSuffix = "/classes/" ++ className ++ "/" ++ id
+        , urlSuffix = className ++ "/" ++ id
         , body = Http.emptyBody
         , responseDecoder = fieldsDecoder
         }
@@ -160,19 +188,142 @@ delete className config (ObjectId id) =
         }
 
 
+
+---- QUERIES
+
+
 {-| -}
 query :
     String
     -> Decoder fields
     -> Config
+    -> List Param
     -> Task Error (List fields)
-query className fieldsDecoder config =
+query className fieldsDecoder config params =
     request config
         { method = "GET"
-        , urlSuffix = className
+        , urlSuffix = className ++ "?" ++ serializeParams params
         , body = Http.emptyBody
         , responseDecoder = Decode.field "results" (Decode.list fieldsDecoder)
         }
+
+
+{-| -}
+type Param
+    = Where Constraint
+    | Count
+    | Limit Int
+    | Distinct String
+
+
+{-| -}
+count : Param
+count =
+    Count
+
+
+{-| -}
+limit : Int -> Param
+limit =
+    Limit
+
+
+{-| -}
+distinct : String -> Param
+distinct =
+    Distinct
+
+
+{-| -}
+type Constraint
+    = And (List Constraint)
+    | Or (List Constraint)
+    | Exists String
+    | EqualTo String String
+    | NotEqualTo String String
+    | LessThan String Float
+    | LessThanOrEqualTo String Float
+    | GreaterThan String Float
+    | GreaterThanOrEqualTo String Float
+    | Regex String String
+
+
+
+{- TODO: missing constraints:
+
+   $in          Contained In
+   $nin         Not Contained in
+   $select      This matches a value for a key in the result of a different query
+   $dontSelect  Requires that a key’s value not match a value for a key in the result of a different query
+   $all         Contains all of the given values
+   $text        Performs a full text search on indexed fields
+-}
+
+
+{-| -}
+constraint : Constraint -> Param
+constraint =
+    Where
+
+
+{-| -}
+and : List Constraint -> Constraint
+and =
+    And
+
+
+{-| -}
+or : List Constraint -> Constraint
+or =
+    Or
+
+
+{-| -}
+exists : String -> Constraint
+exists =
+    Exists
+
+
+{-| -}
+equalTo : String -> String -> Constraint
+equalTo =
+    EqualTo
+
+
+{-| -}
+notEqualTo : String -> String -> Constraint
+notEqualTo =
+    NotEqualTo
+
+
+{-| -}
+lessThan : String -> Float -> Constraint
+lessThan =
+    LessThan
+
+
+{-| -}
+lessThanOrEqualTo : String -> Float -> Constraint
+lessThanOrEqualTo =
+    LessThanOrEqualTo
+
+
+{-| -}
+greaterThan : String -> Float -> Constraint
+greaterThan =
+    GreaterThan
+
+
+{-| -}
+greaterThanOrEqualTo : String -> Float -> Constraint
+greaterThanOrEqualTo =
+    GreaterThanOrEqualTo
+
+
+{-| -}
+regex : String -> String -> Constraint
+regex =
+    Regex
 
 
 
@@ -221,6 +372,106 @@ defaultHeaders : Config -> List Http.Header
 defaultHeaders config =
     [ Http.header "X-Parse-Application-Id" config.applicationId
     , Http.header "X-Parse-REST-API-Key" config.restApiKey
+    ]
+
+
+serializeParams : List Param -> String
+serializeParams params =
+    params
+        |> List.map serializeParam
+        |> String.join "&"
+
+
+serializeParam : Param -> String
+serializeParam param =
+    case param of
+        Count ->
+            "count=1"
+
+        Limit limit ->
+            "limit=" ++ toString limit
+
+        Distinct fieldName ->
+            "distinct=" ++ fieldName
+
+        Where constraint ->
+            [ "where="
+            , encodeConstraint constraint
+                |> Encode.object
+                |> Encode.encode 0
+                |> Http.encodeUri
+            ]
+                |> String.concat
+
+
+encodeConstraint : Constraint -> List ( String, Value )
+encodeConstraint constraint =
+    case constraint of
+        And constraints ->
+            constraints
+                |> List.map encodeConstraint
+                |> List.concat
+
+        Or constraints ->
+            [ ( "$or"
+              , constraints
+                    |> List.map (encodeConstraint >> Encode.object)
+                    |> Encode.list
+              )
+            ]
+
+        Exists fieldName ->
+            [ ( fieldName
+              , [ ( "$exists"
+                  , Encode.bool True
+                  )
+                ]
+                    |> Encode.object
+              )
+            ]
+
+        EqualTo fieldName string ->
+            [ ( fieldName
+              , Encode.string string
+              )
+            ]
+
+        NotEqualTo fieldName string ->
+            [ ( fieldName
+              , [ ( "$ne"
+                  , Encode.string string
+                  )
+                ]
+                    |> Encode.object
+              )
+            ]
+
+        Regex fieldName regex ->
+            [ ( fieldName
+              , [ ( "$regex", Encode.string regex ) ]
+                    |> Encode.object
+              )
+            ]
+
+        LessThan fieldName float ->
+            floatConstraint "$lt" fieldName float
+
+        LessThanOrEqualTo fieldName float ->
+            floatConstraint "$lte" fieldName float
+
+        GreaterThan fieldName float ->
+            floatConstraint "$gt" fieldName float
+
+        GreaterThanOrEqualTo fieldName float ->
+            floatConstraint "$gte" fieldName float
+
+
+floatConstraint : String -> String -> Float -> List ( String, Value )
+floatConstraint type_ fieldName float =
+    [ ( fieldName
+      , [ ( type_, Encode.float float ) ]
+            |> Encode.object
+      )
     ]
 
 

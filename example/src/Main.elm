@@ -7,7 +7,7 @@ import Html.Events as Events
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as Decode
 import Json.Encode as Encode exposing (Value)
-import Parse exposing (Error, ObjectId)
+import Parse exposing (Error, ObjectId, Param)
 import Task exposing (Task)
 
 
@@ -25,6 +25,8 @@ type alias Model =
     { title : String
     , description : String
     , events : List Event
+    , titleQuery : String
+    , descriptionQuery : String
     }
 
 
@@ -33,6 +35,8 @@ init =
     ( { title = ""
       , description = ""
       , events = []
+      , titleQuery = ""
+      , descriptionQuery = ""
       }
     , getAllEvents
         |> Task.attempt
@@ -64,6 +68,10 @@ type Msg
     | DeleteEventClicked ObjectId
     | EventDeleted ()
     | EventDeleteFailed Error
+      -- FILTER
+    | FilterFormSubmitted
+    | TitleQueryUpdated String
+    | DescriptionQueryUpdated String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -168,6 +176,37 @@ update msg model =
             , Cmd.none
             )
 
+        FilterFormSubmitted ->
+            ( model
+            , getAllEventsWith
+                [ Parse.constraint <|
+                    Parse.and
+                        [ Parse.regex "title" model.titleQuery
+                        , Parse.regex "description" model.descriptionQuery
+                        ]
+                , Parse.count
+                ]
+                |> Task.attempt
+                    (\result ->
+                        case result of
+                            Ok events ->
+                                EventsReceived events
+
+                            Err error ->
+                                EventGetAllFailed error
+                    )
+            )
+
+        TitleQueryUpdated newTitleQuery ->
+            ( { model | titleQuery = newTitleQuery }
+            , Cmd.none
+            )
+
+        DescriptionQueryUpdated newDescriptionQuery ->
+            ( { model | descriptionQuery = newDescriptionQuery }
+            , Cmd.none
+            )
+
 
 parseConfig : Parse.Config
 parseConfig =
@@ -204,7 +243,12 @@ getEvent =
 
 getAllEvents : Task Error (List Event)
 getAllEvents =
-    Parse.query "Event" eventDecoder parseConfig
+    Parse.query "Event" eventDecoder parseConfig []
+
+
+getAllEventsWith : List Param -> Task Error (List Event)
+getAllEventsWith params =
+    Parse.query "Event" eventDecoder parseConfig params
 
 
 deleteEvent : ObjectId -> Task Error ()
@@ -251,9 +295,9 @@ view model =
             [ Events.onSubmit FormSubmitted
             ]
             [ Html.label []
-                [ Html.text "title" ]
+                [ Html.text "Title" ]
             , Html.input
-                [ Attributes.type_ "Text"
+                [ Attributes.type_ "text"
                 , Attributes.defaultValue model.title
                 , Events.onInput TitleUpdated
                 ]
@@ -269,6 +313,28 @@ view model =
             , Html.button
                 []
                 [ Html.text "Add" ]
+            ]
+        , Html.form
+            [ Events.onSubmit FilterFormSubmitted ]
+            [ Html.label []
+                [ Html.text "Title" ]
+            , Html.input
+                [ Attributes.type_ "text"
+                , Attributes.defaultValue model.titleQuery
+                , Events.onInput TitleQueryUpdated
+                ]
+                []
+            , Html.label []
+                [ Html.text "Description" ]
+            , Html.input
+                [ Attributes.type_ "text"
+                , Attributes.defaultValue model.descriptionQuery
+                , Events.onInput DescriptionQueryUpdated
+                ]
+                []
+            , Html.button
+                []
+                [ Html.text "Filter" ]
             ]
         ]
 
