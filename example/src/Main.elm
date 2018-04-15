@@ -182,6 +182,7 @@ update msg model =
                 [ Parse.constraint <|
                     Parse.and
                         [ Parse.regex "title" model.titleQuery
+                        , Parse.exists "title"
                         , Parse.regex "description" model.descriptionQuery
                         ]
                 , Parse.count

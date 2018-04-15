@@ -80,6 +80,7 @@ module Parse
 -}
 
 import Date exposing (Date)
+import Dict
 import Http exposing (Request)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
@@ -251,14 +252,18 @@ distinct =
 type Constraint
     = And (List Constraint)
     | Or (List Constraint)
-    | Exists String
-    | EqualTo String String
-    | NotEqualTo String String
-    | LessThan String Float
-    | LessThanOrEqualTo String Float
-    | GreaterThan String Float
-    | GreaterThanOrEqualTo String Float
-    | Regex String String
+    | Field String (List FieldConstraint)
+
+
+type FieldConstraint
+    = Exists
+    | EqualTo String
+    | NotEqualTo String
+    | LessThan Float
+    | LessThanOrEqualTo Float
+    | GreaterThan Float
+    | GreaterThanOrEqualTo Float
+    | Regex String
 
 
 
@@ -281,8 +286,56 @@ constraint =
 
 {-| -}
 and : List Constraint -> Constraint
-and =
-    And
+and constraints =
+    let
+        flattenNestedAnds constraint flatConstraints =
+            case constraint of
+                And nestedConstraints ->
+                    nestedConstraints ++ flatConstraints
+
+                _ ->
+                    constraint :: flatConstraints
+
+        mergeFieldConstraints constraint ( fieldConstraints, otherConstraints ) =
+            case constraint of
+                Field fieldName actualFieldConstraints ->
+                    ( Dict.update fieldName
+                        (\maybeActualFieldConstraints ->
+                            case maybeActualFieldConstraints of
+                                Just otherActualFieldConstraints ->
+                                    Just <|
+                                        actualFieldConstraints
+                                            ++ otherActualFieldConstraints
+
+                                Nothing ->
+                                    Just actualFieldConstraints
+                        )
+                        fieldConstraints
+                    , otherConstraints
+                    )
+
+                _ ->
+                    ( fieldConstraints
+                    , constraint :: otherConstraints
+                    )
+    in
+    constraints
+        |> List.foldr flattenNestedAnds []
+        |> List.foldr mergeFieldConstraints ( Dict.empty, [] )
+        |> Tuple.mapFirst
+            (\fieldConstraints ->
+                fieldConstraints
+                    |> Dict.foldl
+                        (\fieldName actualFieldConstraints result ->
+                            Field fieldName actualFieldConstraints
+                                :: result
+                        )
+                        []
+            )
+        |> (\( fieldConstraints, otherConstraints ) ->
+                fieldConstraints ++ otherConstraints
+           )
+        |> And
 
 
 {-| -}
@@ -293,50 +346,50 @@ or =
 
 {-| -}
 exists : String -> Constraint
-exists =
-    Exists
+exists fieldName =
+    Field fieldName [ Exists ]
 
 
 {-| -}
 equalTo : String -> String -> Constraint
-equalTo =
-    EqualTo
+equalTo fieldName =
+    Field fieldName << List.singleton << EqualTo
 
 
 {-| -}
 notEqualTo : String -> String -> Constraint
-notEqualTo =
-    NotEqualTo
+notEqualTo fieldName =
+    Field fieldName << List.singleton << NotEqualTo
 
 
 {-| -}
 lessThan : String -> Float -> Constraint
-lessThan =
-    LessThan
+lessThan fieldName =
+    Field fieldName << List.singleton << LessThan
 
 
 {-| -}
 lessThanOrEqualTo : String -> Float -> Constraint
-lessThanOrEqualTo =
-    LessThanOrEqualTo
+lessThanOrEqualTo fieldName =
+    Field fieldName << List.singleton << LessThanOrEqualTo
 
 
 {-| -}
 greaterThan : String -> Float -> Constraint
-greaterThan =
-    GreaterThan
+greaterThan fieldName =
+    Field fieldName << List.singleton << GreaterThan
 
 
 {-| -}
 greaterThanOrEqualTo : String -> Float -> Constraint
-greaterThanOrEqualTo =
-    GreaterThanOrEqualTo
+greaterThanOrEqualTo fieldName =
+    Field fieldName << List.singleton << GreaterThanOrEqualTo
 
 
 {-| -}
 regex : String -> String -> Constraint
-regex =
-    Regex
+regex fieldName =
+    Field fieldName << List.singleton << Regex
 
 
 
@@ -433,59 +486,81 @@ encodeConstraint constraint =
               )
             ]
 
-        Exists fieldName ->
+        Field fieldName fieldConstraints ->
+            let
+                fieldEqualTo =
+                    fieldConstraints
+                        |> List.filterMap
+                            (\constraint ->
+                                case constraint of
+                                    EqualTo value ->
+                                        Just value
+
+                                    _ ->
+                                        Nothing
+                            )
+                        |> List.head
+            in
             [ ( fieldName
-              , [ ( "$exists"
-                  , Encode.bool True
-                  )
-                ]
-                    |> Encode.object
+              , case fieldEqualTo of
+                    Just value ->
+                        Encode.string value
+
+                    Nothing ->
+                        fieldConstraints
+                            |> List.filterMap encodeFieldConstraint
+                            |> Encode.object
               )
             ]
 
-        EqualTo fieldName string ->
-            [ ( fieldName
-              , Encode.string string
-              )
-            ]
 
-        NotEqualTo fieldName string ->
-            [ ( fieldName
-              , [ ( "$ne"
-                  , Encode.string string
-                  )
-                ]
-                    |> Encode.object
-              )
-            ]
+encodeFieldConstraint : FieldConstraint -> Maybe ( String, Value )
+encodeFieldConstraint fieldConstraint =
+    case fieldConstraint of
+        Exists ->
+            Just
+                ( "$exists"
+                , Encode.bool True
+                )
 
-        Regex fieldName regex ->
-            [ ( fieldName
-              , [ ( "$regex", Encode.string regex ) ]
-                    |> Encode.object
-              )
-            ]
+        NotEqualTo string ->
+            Just
+                ( "$ne"
+                , Encode.string string
+                )
 
-        LessThan fieldName float ->
-            floatConstraint "$lt" fieldName float
+        Regex regex ->
+            Just
+                ( "$regex"
+                , Encode.string regex
+                )
 
-        LessThanOrEqualTo fieldName float ->
-            floatConstraint "$lte" fieldName float
+        LessThan float ->
+            Just
+                ( "$lt"
+                , Encode.float float
+                )
 
-        GreaterThan fieldName float ->
-            floatConstraint "$gt" fieldName float
+        LessThanOrEqualTo float ->
+            Just
+                ( "$lte"
+                , Encode.float float
+                )
 
-        GreaterThanOrEqualTo fieldName float ->
-            floatConstraint "$gte" fieldName float
+        GreaterThan float ->
+            Just
+                ( "$gt"
+                , Encode.float float
+                )
 
+        GreaterThanOrEqualTo float ->
+            Just
+                ( "$gte"
+                , Encode.float float
+                )
 
-floatConstraint : String -> String -> Float -> List ( String, Value )
-floatConstraint type_ fieldName float =
-    [ ( fieldName
-      , [ ( type_, Encode.float float ) ]
-            |> Encode.object
-      )
-    ]
+        EqualTo _ ->
+            Nothing
 
 
 
