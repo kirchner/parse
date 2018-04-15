@@ -1,7 +1,10 @@
+data
+docs.json
 elm-stuff/
-node_modules/
-logs/
+example/live-queries/index.html
+example/rest/data/
+!example/rest/data/.keep
+example/rest/_site/
 *.log
-example/data/
-example/_site/
-!example/data/.keep
+logs/
+node_modules/

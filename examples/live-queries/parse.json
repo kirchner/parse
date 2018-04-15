@@ -1,0 +1,8 @@
+{ "appId": "test",
+  "serverURL": "http://localhost:1337/parse",
+  "masterKey": "test",
+  "startLiveQueryServer": true,
+  "liveQueryServerOptions":
+    { "classNames": ["Event"]
+    }
+}
