@@ -7,7 +7,7 @@ module Parse
         , Config
         , Constraint
         , Error
-            ( BadError
+            ( DecodeError
             , HttpError
             , ParseError
             )
@@ -469,7 +469,7 @@ request config { method, urlSuffix, body, responseDecoder } =
                                 ParseError parseError
 
                             Err decodeError ->
-                                BadError decodeError
+                                DecodeError decodeError
 
                     _ ->
                         HttpError httpError
@@ -630,7 +630,7 @@ type Error
         , error : String
         }
     | HttpError Http.Error
-    | BadError String
+    | DecodeError String
 
 
 {-| -}
