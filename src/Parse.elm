@@ -11,7 +11,6 @@ module Parse
             , HttpError
             , ParseError
             )
-        , Object
         , ObjectId
         , Query
         , and
@@ -44,14 +43,11 @@ module Parse
 @docs Config, simpleConfig
 
 
-# Objects
-
-@docs Object, ObjectId, objectIdDecoder, encodeObjectId
-
-
 # REST Actions
 
 @docs create, get, update, delete
+
+@docs ObjectId, objectIdDecoder, encodeObjectId
 
 
 # Queries
@@ -116,16 +112,6 @@ simpleConfig serverUrl applicationId =
 
 
 ---- OBJECTS
-
-
-{-| TODO: do we need this?
--}
-type alias Object fields =
-    { fields
-        | objectId : ObjectId
-        , createdAt : Date
-        , updatedAt : Date
-    }
 
 
 {-| -}
