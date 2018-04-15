@@ -1,8 +1,16 @@
 module Parse
     exposing
         ( Code
+            ( InvalidQuery
+            , UserInvalidLoginParams
+            )
         , Config
+        , Constraint
         , Error
+            ( BadError
+            , HttpError
+            , ParseError
+            )
         , Object
         , ObjectId
         , Param
@@ -51,7 +59,12 @@ module Parse
 
 @docs query
 
-@docs Param, count, limit, distinct, constraint
+@docs Param, count, limit, distinct
+
+
+## Constraints
+
+@docs Constraint, constraint
 
 @docs and, or, exists
 
