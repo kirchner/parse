@@ -138,15 +138,15 @@ encodeObjectId (ObjectId id) =
 {-| -}
 create :
     String
-    -> (fields -> Value)
+    -> (object -> Value)
     -> Config
-    -> fields
+    -> object
     -> Task Error { createdAt : Date, objectId : ObjectId }
-create className encodeFields config fields =
+create className encodeObject config object =
     request config
         { method = "POST"
         , urlSuffix = className
-        , body = Http.jsonBody (encodeFields fields)
+        , body = Http.jsonBody (encodeObject object)
         , responseDecoder =
             Decode.map2 (\createdAt objectId -> { createdAt = createdAt, objectId = objectId })
                 (Decode.field "createdAt" dateDecoder)
@@ -157,32 +157,32 @@ create className encodeFields config fields =
 {-| -}
 get :
     String
-    -> Decoder fields
+    -> Decoder object
     -> Config
     -> ObjectId
-    -> Task Error fields
-get className fieldsDecoder config (ObjectId id) =
+    -> Task Error object
+get className objectDecoder config (ObjectId id) =
     request config
         { method = "GET"
         , urlSuffix = className ++ "/" ++ id
         , body = Http.emptyBody
-        , responseDecoder = fieldsDecoder
+        , responseDecoder = objectDecoder
         }
 
 
 {-| -}
 update :
     String
-    -> (fields -> Value)
+    -> (object -> Value)
     -> Config
     -> ObjectId
-    -> fields
+    -> object
     -> Task Error { updatedAt : Date }
-update className encodeFields config (ObjectId id) fields =
+update className encodeObject config (ObjectId id) object =
     request config
         { method = "PUT"
         , urlSuffix = className ++ "/" ++ id
-        , body = Http.jsonBody (encodeFields fields)
+        , body = Http.jsonBody (encodeObject object)
         , responseDecoder =
             Decode.map (\updatedAt -> { updatedAt = updatedAt })
                 (Decode.field "updatedAt" dateDecoder)
@@ -210,16 +210,16 @@ delete className config (ObjectId id) =
 
 {-| -}
 query :
-    Decoder fields
+    Decoder object
     -> Config
     -> Query
-    -> Task Error (List fields)
-query fieldsDecoder config query =
+    -> Task Error (List object)
+query objectDecoder config query =
     request config
         { method = "GET"
         , urlSuffix = query.className ++ "?" ++ serializeQuery query
         , body = Http.emptyBody
-        , responseDecoder = Decode.field "results" (Decode.list fieldsDecoder)
+        , responseDecoder = Decode.field "results" (Decode.list objectDecoder)
         }
 
 
