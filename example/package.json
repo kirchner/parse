@@ -1,0 +1,20 @@
+{
+  "name": "parse-example",
+  "version": "1.0.0",
+  "description": "Example for Parse",
+  "main": "index.js",
+  "dependencies": {
+    "parse-dashboard": "^1.2.0",
+    "parse-server": "^2.7.4"
+  },
+  "devDependencies": {
+    "concurrently": "^3.5.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "concurrently \"mongod --dbpath data\" \"parse-server --appId parse-example --masterKey secret --serverURL http://localhost:1337/parse\"",
+    "dashboard": "parse-dashboard --appId parse-example --masterKey secret --serverURL http://localhost:1337/parse"
+  },
+  "author": "",
+  "license": "ISC"
+}
