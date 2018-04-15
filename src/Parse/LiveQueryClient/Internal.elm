@@ -5,6 +5,7 @@ module Parse.LiveQueryClient.Internal
         , subscribe
         , unsubscribe
         , connect
+        , Lift
         )
 
 import Json.Decode as Json exposing (Decoder, Value)
@@ -12,14 +13,16 @@ import Json.Encode as Encode
 import Parse exposing (Config, Query)
 
 
-type Msg
+type Msg m
     = DecodeError String
+
+    | Subscribe Query (Lift m)
+    | Unsubscribe Query
+
     | Connected { clientId : String }
     | Subscribed { clientId : String, requestId : Int }
     | Unsubscribed { requestId : Int }
     | Error { code : Int, error : String, reconnect : Bool }
-    | Open { requestId : Int }
-    | Close { requestId : Int }
     | Create { requestId : Int, object : Value }
     | Update { requestId : Int, object : Value }
     | Enter { requestId : Int, object : Value }
@@ -27,7 +30,19 @@ type Msg
     | Delete { requestId : Int, object : Value }
 
 
-decodeMsg : Decoder Msg
+type alias Lift m =
+    { onOpen : m
+    , onClose : m
+    , onCreate : Decoder m
+    , onUpdate : Decoder m
+    , onEnter : Decoder m
+    , onLeave : Decoder m
+    , onDelete : Decoder m
+    , liftErr : String -> m
+    }
+
+
+decodeMsg : Decoder (Msg m)
 decodeMsg =
     Json.at [ "op" ] Json.string
         |> Json.andThen
@@ -63,20 +78,6 @@ decodeMsg =
                             (Json.at [ "code" ] Json.int)
                             (Json.at [ "error" ] Json.string)
                             (Json.at [ "reconnect" ] Json.bool)
-
-                    "open" ->
-                        Json.map
-                            (\requestId ->
-                                Open { requestId = requestId }
-                            )
-                            (Json.at [ "requestId" ] Json.int)
-
-                    "close" ->
-                        Json.map
-                            (\requestId ->
-                                Close { requestId = requestId }
-                            )
-                            (Json.at [ "requestId" ] Json.int)
 
                     "create" ->
                         Json.map2

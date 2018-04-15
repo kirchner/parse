@@ -4,14 +4,14 @@ var path = require("path");
 
 var api = new ParseServer({
   databaseURI: "mongodb://localhost:27017",
-  cloud: "./cloud/main.js",
+  serverURL: "http://localhost:1337/parse",
   appId: "test",
   masterKey: "test",
-  serverURL: "http://localhost:1337/parse",
   restApiKey: "test",
   liveQuery: {
     classNames: ["_User"]
   },
+  cloud: "./cloud/main.js",
   verbose: false
 });
 var app = express();

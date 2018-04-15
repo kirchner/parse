@@ -2,6 +2,7 @@ module Main exposing (..)
 
 import Date exposing (Date)
 import Dict exposing (Dict)
+import Html.Events as Html
 import Html exposing (Html, text, program)
 import Json.Decode as Json exposing (Decoder, Value)
 import Json.Decode.Pipeline as Json
@@ -40,9 +41,11 @@ defaultModel =
 
 
 type Msg
-    = LiveQueryClientMsg Parse.LiveQueryClient.Internal.Msg
+    = LiveQueryClientMsg (Parse.LiveQueryClient.Internal.Msg Msg)
     | UserInit (Result Parse.Error (List User))
     | UserMsg (Result String (LiveQuery.Msg User))
+    | UserUnsubscribe
+    | UserSubscribe
 
 
 parseConfig : Parse.Config
@@ -95,13 +98,31 @@ subscriptions model =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case Debug.log "Msg" msg of
+    case msg of
         LiveQueryClientMsg msg_ ->
             let
                 ( liveQueryClient, cmds ) =
                     LiveQueryClient.update parseConfig msg_ model.liveQueryClient
             in
                 ( { model | liveQueryClient = liveQueryClient }, cmds )
+
+        UserUnsubscribe ->
+            let
+                ( liveQueryClient, cmds ) =
+                    LiveQueryClient.update parseConfig
+                        (LiveQueryClient.unsubscribe userQuery)
+                        model.liveQueryClient
+            in
+                ( { model | liveQueryClient = liveQueryClient }, Cmd.none )
+
+        UserSubscribe ->
+            let
+                ( liveQueryClient, cmds ) =
+                    LiveQueryClient.update parseConfig
+                        (LiveQueryClient.unsubscribe userQuery)
+                        model.liveQueryClient
+            in
+                ( { model | liveQueryClient = liveQueryClient }, Cmd.none )
 
         UserInit (Err err) ->
             let
@@ -202,33 +223,56 @@ decodeDate =
 view : Model -> Html Msg
 view model =
     Html.div []
-        [ Html.table []
-            [ Html.thead []
-                [ Html.tr []
-                    [ Html.th [] [ text "objectId" ]
-                    , Html.th [] [ text "createdAt" ]
-                    , Html.th [] [ text "updatedAt" ]
-                    , Html.th [] [ text "username" ]
-                    ]
-                ]
-            , Html.tbody []
-                (List.map
-                    (\user ->
-                        Html.tr []
-                            [ Html.td [] [ text user.objectId ]
-                            , Html.td [] [ text (toString user.createdAt) ]
-                            , Html.td [] [ text (toString user.updatedAt) ]
-                            , Html.td [] [ text user.username ]
-                            ]
-                    )
-                    (Dict.values model.users)
+        [ Html.div []
+            [ Html.span [] [ text "User" ]
+            , Html.span [] [ text (toString model.userOpen) ]
+            ]
+        , Html.div
+            [ Html.onClick
+                (if model.userOpen then
+                    UserUnsubscribe
+                 else
+                    UserSubscribe
                 )
             ]
-        , Html.pre
-            []
-            [ model.userEvents
-                |> List.map toString
-                |> String.join "\n"
-                |> text
+            [ Html.button []
+                [ text
+                    (if model.userOpen then
+                        "Unsubscribe"
+                     else
+                        "Subscribe"
+                    )
+                ]
+            ]
+        , Html.div []
+            [ Html.table []
+                [ Html.thead []
+                    [ Html.tr []
+                        [ Html.th [] [ text "objectId" ]
+                        , Html.th [] [ text "createdAt" ]
+                        , Html.th [] [ text "updatedAt" ]
+                        , Html.th [] [ text "username" ]
+                        ]
+                    ]
+                , Html.tbody []
+                    (List.map
+                        (\user ->
+                            Html.tr []
+                                [ Html.td [] [ text user.objectId ]
+                                , Html.td [] [ text (toString user.createdAt) ]
+                                , Html.td [] [ text (toString user.updatedAt) ]
+                                , Html.td [] [ text user.username ]
+                                ]
+                        )
+                        (Dict.values model.users)
+                    )
+                ]
+            , Html.pre
+                []
+                [ model.userEvents
+                    |> List.map toString
+                    |> String.join "\n"
+                    |> text
+                ]
             ]
         ]

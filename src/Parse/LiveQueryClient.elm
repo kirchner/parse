@@ -23,7 +23,7 @@ import Json.Decode as Json exposing (Decoder, Value)
 import Json.Encode as Encode
 import Parse exposing (Config, Query)
 import Parse.LiveQuery as LiveQuery
-import Parse.LiveQueryClient.Internal as Internal
+import Parse.LiveQueryClient.Internal as Internal exposing (Msg(..), Lift, connect, decodeMsg)
 import Task exposing (Task)
 import WebSocket
 
@@ -45,18 +45,6 @@ type alias Subscription m =
     }
 
 
-type alias Lift m =
-    { onOpen : m
-    , onClose : m
-    , onCreate : Decoder m
-    , onUpdate : Decoder m
-    , onEnter : Decoder m
-    , onLeave : Decoder m
-    , onDelete : Decoder m
-    , liftErr : String -> m
-    }
-
-
 {-| -}
 defaultModel : Model m
 defaultModel =
@@ -74,12 +62,12 @@ init :
     -> ( Model m, Cmd m )
 init config queue =
     ( { defaultModel | queue = queue }
-    , WebSocket.send config.serverUrl (Encode.encode 0 (Internal.connect config))
+    , WebSocket.send config.serverUrl (Encode.encode 0 (connect config))
     )
 
 
 {-| -}
-update : Config -> Internal.Msg -> Model m -> ( Model m, Cmd m )
+update : Config -> Msg m -> Model m -> ( Model m, Cmd m )
 update config msg model =
     let
         ( updatedModel, internalCmds ) =
@@ -96,7 +84,7 @@ update config msg model =
 
 
 {-| -}
-updateSubscription : Config -> Internal.Msg -> Subscription m -> List m
+updateSubscription : Config -> Msg m -> Subscription m -> List m
 updateSubscription config msg subscription =
     let
         when requestId x =
@@ -115,124 +103,79 @@ updateSubscription config msg subscription =
                         [ subscription.lift.liftErr err ]
     in
         case msg of
-            Internal.DecodeError err ->
+            DecodeError err ->
                 []
 
-            Internal.Connected { clientId } ->
+            Subscribe _ _ ->
                 []
 
-            Internal.Subscribed { clientId, requestId } ->
+            Unsubscribe _ ->
                 []
 
-            Internal.Unsubscribed { requestId } ->
+            Connected { clientId } ->
                 []
 
-            Internal.Error { code, error, reconnect } ->
-                []
-
-            Internal.Open { requestId } ->
+            Subscribed { clientId, requestId } ->
                 when requestId [ subscription.lift.onOpen ]
 
-            Internal.Close { requestId } ->
+            Unsubscribed { requestId } ->
                 when requestId [ subscription.lift.onClose ]
 
-            Internal.Create { requestId, object } ->
+            Error { code, error, reconnect } ->
+                []
+
+            Create { requestId, object } ->
                 objectWhen requestId (Json.decodeValue subscription.lift.onCreate object)
 
-            Internal.Update { requestId, object } ->
+            Update { requestId, object } ->
                 objectWhen requestId (Json.decodeValue subscription.lift.onUpdate object)
 
-            Internal.Enter { requestId, object } ->
+            Enter { requestId, object } ->
                 objectWhen requestId (Json.decodeValue subscription.lift.onEnter object)
 
-            Internal.Leave { requestId, object } ->
+            Leave { requestId, object } ->
                 objectWhen requestId (Json.decodeValue subscription.lift.onLeave object)
 
-            Internal.Delete { requestId, object } ->
+            Delete { requestId, object } ->
                 objectWhen requestId (Json.decodeValue subscription.lift.onDelete object)
 
 
-updateInternal : Config -> Internal.Msg -> Model m -> ( Model m, Cmd m )
+updateInternal : Config -> Msg m -> Model m -> ( Model m, Cmd m )
 updateInternal config msg model =
     case msg of
-        Internal.DecodeError err ->
+        DecodeError err ->
             let
                 _ =
                     Debug.log "ProtocolError" err
             in
                 ( model, Cmd.none )
 
-        Internal.Connected { clientId } ->
+        Connected { clientId } ->
             let
                 ( updatedModel, cmds ) =
                     List.foldl
-                        (\operation ( model, cmds ) ->
-                            case operation of
-                                Subscribe query lift ->
-                                    let
-                                        requestId =
-                                            model.nextRequestId
-
-                                        subscription =
-                                            { requestId = requestId
-                                            , open = False
-                                            , lift = lift
-                                            , query = query
-                                            }
-                                    in
-                                        ( { model | nextRequestId = requestId + 1, subscriptions = subscription :: model.subscriptions }
-                                        , runMsg (Subscribe query lift) config requestId :: cmds
-                                        )
-
-                                _ ->
-                                    ( model, cmds )
-                         -- TODO:
-                         --                        Unsubscribe query ->
-                         --                          let
-                         --                              requestId =
-                         --                                model.subscriptions
-                         --                                |> List.filter (\ subscription ->
-                         --                                  subscription.query == query
-                         --                                  )
-                         --                                |> List.head
-                         --                                |> Maybe.map .requestId
-                         --                          in
-                         --                          ( model
-                         --                          , (::)
-                         --                          (case requestId of
-                         --                                Just requestId ->
-                         --                                    runMsg (Subscribe query) config requestId
-                         --                                Nothing ->
-                         --                                  Cmd.none
-                         --                                  ) cmds
-                         --                          )
+                        (\msg ( model, cmds ) ->
+                            let
+                                ( updatedModel, newCmds ) =
+                                    update config msg model
+                            in
+                                ( updatedModel, Cmd.batch [ newCmds, cmds ] )
                         )
-                        ( { model | clientId = Just clientId, queue = [] }, [] )
+                        ( { model | clientId = Just clientId, queue = [] }, Cmd.none )
                         model.queue
             in
-                ( updatedModel, Cmd.batch cmds )
+                ( updatedModel, cmds )
 
-        Internal.Error { code, error, reconnect } ->
+        Error { code, error, reconnect } ->
             ( { model | clientId = Nothing }
             , if reconnect then
                 WebSocket.send config.serverUrl <|
-                    Encode.encode 0 (Internal.connect config)
+                    Encode.encode 0 (connect config)
               else
                 Cmd.none
             )
 
-        Internal.Subscribed { clientId, requestId } ->
-            ( model, Cmd.none )
-
-        Internal.Unsubscribed { requestId } ->
-            let
-                subscriptions =
-                    model.subscriptions
-                        |> List.filter ((/=) requestId << .requestId)
-            in
-                ( { model | subscriptions = subscriptions }, Cmd.none )
-
-        Internal.Open { requestId } ->
+        Subscribed { clientId, requestId } ->
             let
                 subscriptions =
                     List.map
@@ -246,41 +189,57 @@ updateInternal config msg model =
             in
                 ( { model | subscriptions = subscriptions }, Cmd.none )
 
-        Internal.Close { requestId } ->
+        Unsubscribed { requestId } ->
             let
                 subscriptions =
-                    List.map
-                        (\subscription ->
-                            if subscription.requestId == requestId then
-                                { subscription | open = False }
-                            else
-                                subscription
-                        )
-                        model.subscriptions
+                    model.subscriptions
+                        |> List.filter ((/=) requestId << .requestId)
             in
                 ( { model | subscriptions = subscriptions }, Cmd.none )
 
-        _ ->
-            ( model, Cmd.none )
-
-
-type Msg m
-    = Subscribe Query (Lift m)
-    | Unsubscribe Query
-
-
-runMsg : Msg m -> (Config -> Int -> Cmd m)
-runMsg operation =
-    case operation of
         Subscribe query lift ->
-            \config requestId ->
-                WebSocket.send config.serverUrl <|
+            let
+                requestId =
+                    model.nextRequestId
+
+                subscription =
+                    { requestId = requestId
+                    , open = False
+                    , lift = lift
+                    , query = query
+                    }
+            in
+                ( { model
+                    | nextRequestId = requestId + 1
+                    , subscriptions = subscription :: model.subscriptions
+                  }
+                , WebSocket.send config.serverUrl <|
                     Encode.encode 0 (Internal.subscribe config query requestId)
+                )
 
         Unsubscribe query ->
-            \config requestId ->
-                WebSocket.send config.serverUrl <|
-                    Encode.encode 0 (Internal.unsubscribe config requestId)
+            let
+                requestId =
+                    model.subscriptions
+                        |> List.filter
+                            (\subscription ->
+                                subscription.query == query
+                            )
+                        |> List.head
+                        |> Maybe.map .requestId
+            in
+                ( model
+                , case requestId of
+                    Just requestId ->
+                        WebSocket.send config.serverUrl <|
+                            Encode.encode 0 (Internal.unsubscribe config requestId)
+
+                    Nothing ->
+                        Cmd.none
+                )
+
+        _ ->
+            ( model, Cmd.none )
 
 
 {-| -}
@@ -312,13 +271,13 @@ unsubscribe query =
 
 
 {-| -}
-subscription : (Internal.Msg -> m) -> Config -> Model m -> Sub m
+subscription : (Msg m -> m) -> Config -> Model m -> Sub m
 subscription lift config model =
     WebSocket.listen config.serverUrl <|
         \string ->
-            case Json.decodeString Internal.decodeMsg string of
+            case Json.decodeString decodeMsg string of
                 Ok internalMsg ->
                     lift internalMsg
 
                 Err err ->
-                    lift (Internal.DecodeError err)
+                    lift (DecodeError err)
