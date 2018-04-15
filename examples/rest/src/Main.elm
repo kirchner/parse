@@ -211,9 +211,14 @@ update msg model =
 
 parseConfig : Parse.Config
 parseConfig =
-    { applicationId = "parse-example"
-    , restApiKey = "secret"
-    , serverUrl = "http://localhost:1337/parse"
+    { serverUrl = "http://localhost:1337/parse"
+    , applicationId = "parse-example"
+    , restAPIKey = Just "secret"
+    , javascriptKey = Nothing
+    , clientKey = Nothing
+    , windowsKey = Nothing
+    , masterKey = Nothing
+    , sessionToken = Nothing
     }
 
 

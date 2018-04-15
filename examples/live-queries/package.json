@@ -7,7 +7,9 @@
     "parse-dashboard": "^1.2.0",
     "parse-server": "^2.7.4"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "concurrently": "^3.5.1"
+  },
   "scripts": {
     "start": "concurrently \"mongod --dbpath data\" \"node index.js\" \"parse-dashboard --apId test --masterKey test --serverURL http://localhost:1337/parse\"",
     "dashboard": "parse-dashboard --appId test --masterKey test --serverURL http://localhost:1337/parse",

@@ -8,7 +8,6 @@
     ],
     "exposed-modules": [
         "Parse",
-        "Parse.Config",
         "Parse.LiveQuery",
         "Parse.LiveQueryClient",
         "Parse.Query"

@@ -9,7 +9,7 @@ module Parse.LiveQueryClient.Internal
 
 import Json.Decode as Json exposing (Decoder, Value)
 import Json.Encode as Encode
-import Parse.Config as Config exposing (Config)
+import Parse exposing (Config)
 import Parse.Query as Query exposing (Query)
 import WebSocket
 

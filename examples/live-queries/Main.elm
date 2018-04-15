@@ -5,7 +5,7 @@ import Dict exposing (Dict)
 import Html exposing (Html, text, program)
 import Json.Decode as Json exposing (Decoder, Value)
 import Json.Decode.Pipeline as Json
-import Parse.Config
+import Parse
 import Parse.LiveQuery as LiveQuery
 import Parse.LiveQueryClient as LiveQueryClient
 import Parse.LiveQueryClient.Internal
@@ -43,7 +43,7 @@ type Msg
     | UserMsg (Result String (LiveQuery.Msg User))
 
 
-parseConfig : Parse.Config.Config
+parseConfig : Parse.Config
 parseConfig =
     { serverUrl = "ws://localhost:1337/parse"
     , applicationId = "test"

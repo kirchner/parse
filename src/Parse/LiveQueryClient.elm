@@ -9,10 +9,20 @@ module Parse.LiveQueryClient
         , update
         )
 
+{-|
+
+@docs Model, defaultModel, init
+
+@docs subscribe, subscription, unsubscribe
+
+@docs update
+
+-}
+
 import Dict exposing (Dict)
 import Json.Decode as Json exposing (Decoder, Value)
 import Json.Encode as Encode
-import Parse.Config as Config exposing (Config)
+import Parse exposing (Config)
 import Parse.LiveQuery as LiveQuery
 import Parse.LiveQueryClient.Internal as Internal
 import Parse.Query as Query exposing (Query)
@@ -20,6 +30,7 @@ import Task exposing (Task)
 import WebSocket
 
 
+{-| -}
 type alias Model m =
     { subscriptions : List (Subscription m)
     , clientId : Maybe String
@@ -48,6 +59,7 @@ type alias Lift m =
     }
 
 
+{-| -}
 defaultModel : Model m
 defaultModel =
     { subscriptions = []
@@ -57,6 +69,7 @@ defaultModel =
     }
 
 
+{-| -}
 init :
     Config
     -> List (Msg m)
@@ -67,6 +80,7 @@ init config queue =
     )
 
 
+{-| -}
 update : Config -> Internal.Msg -> Model m -> ( Model m, Cmd m )
 update config msg model =
     let
@@ -83,6 +97,7 @@ update config msg model =
         ( updatedModel, Cmd.batch (internalCmds :: userCmds) )
 
 
+{-| -}
 updateSubscription : Config -> Internal.Msg -> Subscription m -> List m
 updateSubscription config msg subscription =
     let
@@ -270,6 +285,7 @@ runMsg operation =
                     Encode.encode 0 (Internal.unsubscribe config requestId)
 
 
+{-| -}
 subscribe : Query -> Decoder a -> (Result String (LiveQuery.Msg a) -> m) -> Msg m
 subscribe query decodeObject lift =
     let
@@ -291,11 +307,13 @@ subscribe query decodeObject lift =
             }
 
 
+{-| -}
 unsubscribe : Query -> Msg m
 unsubscribe query =
     Unsubscribe query
 
 
+{-| -}
 subscription : (Internal.Msg -> m) -> Config -> Model m -> Sub m
 subscription lift config model =
     WebSocket.listen config.serverUrl <|

@@ -5,11 +5,17 @@ module Parse.Query
         , encodeQuery
         )
 
+{-|
+
+@docs Query, defaultQuery, encodeQuery
+
+-}
+
 import Json.Decode as Json exposing (Decoder, Value)
 import Json.Encode as Encode
-import WebSocket
 
 
+{-| -}
 type alias Query =
     { whereClause : List String
     , include : List String
@@ -22,6 +28,7 @@ type alias Query =
     }
 
 
+{-| -}
 defaultQuery : Query
 defaultQuery =
     { whereClause = []
@@ -35,6 +42,7 @@ defaultQuery =
     }
 
 
+{-| -}
 encodeQuery : Query -> Value
 encodeQuery query =
     Encode.object <|

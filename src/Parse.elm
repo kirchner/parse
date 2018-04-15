@@ -34,6 +34,7 @@ module Parse
         , or
         , query
         , regex
+        , simpleConfig
         , update
         )
 
@@ -42,7 +43,7 @@ module Parse
 
 # Configuration
 
-@docs Config
+@docs Config, simpleConfig
 
 
 # Objects
@@ -92,10 +93,29 @@ import Task exposing (Task)
 
 {-| -}
 type alias Config =
-    { applicationId : String
-    , restApiKey : String
-    , serverUrl : String
+    { serverUrl : String
+    , applicationId : String
+    , restAPIKey : Maybe String
+    , javascriptKey : Maybe String
+    , clientKey : Maybe String
+    , windowsKey : Maybe String
+    , masterKey : Maybe String
+    , sessionToken : Maybe String
     }
+
+
+{-| -}
+simpleConfig : String -> String -> Config
+simpleConfig serverUrl applicationId =
+    Config
+        serverUrl
+        applicationId
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
 
 
 
@@ -436,9 +456,11 @@ request config { method, urlSuffix, body, responseDecoder } =
 
 defaultHeaders : Config -> List Http.Header
 defaultHeaders config =
-    [ Http.header "X-Parse-Application-Id" config.applicationId
-    , Http.header "X-Parse-REST-API-Key" config.restApiKey
-    ]
+    List.filterMap identity
+        [ Just (Http.header "X-Parse-Application-Id" config.applicationId)
+        , config.restAPIKey
+            |> Maybe.map (Http.header "X-Parse-REST-API-Key")
+        ]
 
 
 serializeParams : List Param -> String
