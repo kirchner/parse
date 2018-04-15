@@ -10,6 +10,7 @@ import Parse.LiveQuery as LiveQuery
 import Parse.LiveQueryClient as LiveQueryClient
 import Parse.LiveQueryClient.Internal
 import Parse.Query
+import Task
 
 
 main =
@@ -40,6 +41,7 @@ defaultModel =
 
 type Msg
     = LiveQueryClientMsg Parse.LiveQueryClient.Internal.Msg
+    | UserInit (Result Parse.Error (List User))
     | UserMsg (Result String (LiveQuery.Msg User))
 
 
@@ -56,6 +58,19 @@ parseConfig =
     }
 
 
+restConfig : Parse.Config
+restConfig =
+    { serverUrl = "http://localhost:1337/parse"
+    , applicationId = "test"
+    , masterKey = Just "test"
+    , javascriptKey = Nothing
+    , restAPIKey = Just "test"
+    , sessionToken = Nothing
+    , clientKey = Nothing
+    , windowsKey = Nothing
+    }
+
+
 init : ( Model, Cmd Msg )
 init =
     let
@@ -65,7 +80,11 @@ init =
                 ]
     in
         ( { defaultModel | liveQueryClient = liveQueryClient }
-        , liveQueryClientCmds
+        , Cmd.batch
+            [ liveQueryClientCmds
+            , Task.attempt UserInit <|
+                Parse.query "_User" decodeUser restConfig []
+            ]
         )
 
 
@@ -83,6 +102,20 @@ update msg model =
                     LiveQueryClient.update parseConfig msg_ model.liveQueryClient
             in
                 ( { model | liveQueryClient = liveQueryClient }, cmds )
+
+        UserInit (Err err) ->
+            let
+                _ =
+                    Debug.log "UserInit" err
+            in
+                ( model, Cmd.none )
+
+        UserInit (Ok users) ->
+            ( { model
+                | users = Dict.fromList (List.map (\user -> ( user.objectId, user )) users)
+              }
+            , Cmd.none
+            )
 
         UserMsg (Err err) ->
             let
