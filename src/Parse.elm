@@ -13,26 +13,37 @@ module Parse
             )
         , ObjectId
         , Query
+        , SessionToken
         , and
         , create
         , delete
+        , deleteUser
+        , emailVerificationRequest
         , emptyQuery
         , encodeObjectId
         , encodeQuery
+        , encodeSessionToken
         , equalTo
         , exists
         , get
+        , getCurrentUser
+        , getUser
         , greaterThan
         , greaterThanOrEqualTo
         , lessThan
         , lessThanOrEqualTo
+        , logIn
         , notEqualTo
         , objectIdDecoder
         , or
+        , passwordResetRequest
         , query
         , regex
+        , sessionTokenDecoder
+        , signUp
         , simpleConfig
         , update
+        , updateUser
         )
 
 {-|
@@ -41,6 +52,8 @@ module Parse
 # Configuration
 
 @docs Config, simpleConfig
+
+@docs SessionToken, sessionTokenDecoder, encodeSessionToken
 
 
 # REST Actions
@@ -64,6 +77,17 @@ module Parse
 @docs equalTo, notEqualTo, regex
 
 @docs lessThan, lessThanOrEqualTo, greaterThan, greaterThanOrEqualTo
+
+
+# Users
+
+@docs signUp
+
+@docs logIn
+
+@docs emailVerificationRequest, passwordResetRequest
+
+@docs getUser, getCurrentUser, updateUser, deleteUser
 
 
 # Errors
@@ -92,7 +116,7 @@ type alias Config =
     , clientKey : Maybe String
     , windowsKey : Maybe String
     , masterKey : Maybe String
-    , sessionToken : Maybe String
+    , sessionToken : Maybe SessionToken
     }
 
 
@@ -108,6 +132,23 @@ simpleConfig serverUrl applicationId =
         Nothing
         Nothing
         Nothing
+
+
+{-| -}
+type SessionToken
+    = SessionToken String
+
+
+{-| -}
+sessionTokenDecoder : Decoder SessionToken
+sessionTokenDecoder =
+    Decode.map SessionToken Decode.string
+
+
+{-| -}
+encodeSessionToken : SessionToken -> Value
+encodeSessionToken (SessionToken token) =
+    Encode.string token
 
 
 
@@ -199,6 +240,209 @@ delete className config (ObjectId id) =
     request config
         { method = "DELETE"
         , urlSuffix = className ++ "/" ++ id
+        , body = Http.emptyBody
+        , responseDecoder = Decode.succeed ()
+        }
+
+
+
+---- USERS
+
+
+{-| -}
+signUp : Config -> String -> String -> Task Error { location : String }
+signUp config username password =
+    Http.request
+        { method = "POST"
+        , headers =
+            Http.header "X-Parse-Revocable-Session" (toString 1)
+                :: defaultHeaders config
+        , url = config.serverUrl ++ "/users"
+        , body = Http.emptyBody
+        , expect =
+            Http.expectJson <|
+                Decode.map (\location -> { location = location }) <|
+                    Decode.field "Location" Decode.string
+        , timeout = Nothing
+        , withCredentials = False
+        }
+        |> Http.toTask
+        |> Task.mapError
+            (\httpError ->
+                case httpError of
+                    Http.BadStatus { status, body } ->
+                        case Decode.decodeString errorDecoder body of
+                            Ok parseError ->
+                                ParseError parseError
+
+                            Err decodeError ->
+                                DecodeError decodeError
+
+                    _ ->
+                        HttpError httpError
+            )
+
+
+{-| -}
+logIn :
+    Decoder user
+    -> Config
+    -> String
+    -> String
+    ->
+        Task Error
+            { user : user
+            , sessionToken : SessionToken
+            }
+logIn userDecoder config username password =
+    let
+        responseDecoder =
+            Decode.map2
+                (\user sessionToken ->
+                    { user = user
+                    , sessionToken = sessionToken
+                    }
+                )
+                userDecoder
+                (Decode.field "sessionToken" sessionTokenDecoder)
+    in
+    Http.request
+        { method = "GET"
+        , headers =
+            Http.header "X-Parse-Revocable-Session" (toString 1)
+                :: defaultHeaders config
+        , url = config.serverUrl ++ "/users"
+        , body = Http.emptyBody
+        , expect =
+            Http.expectJson <|
+                responseDecoder
+        , timeout = Nothing
+        , withCredentials = False
+        }
+        |> Http.toTask
+        |> Task.mapError
+            (\httpError ->
+                case httpError of
+                    Http.BadStatus { status, body } ->
+                        case Decode.decodeString errorDecoder body of
+                            Ok parseError ->
+                                ParseError parseError
+
+                            Err decodeError ->
+                                DecodeError decodeError
+
+                    _ ->
+                        HttpError httpError
+            )
+
+
+{-| -}
+emailVerificationRequest : Config -> String -> Task Error ()
+emailVerificationRequest config email =
+    Http.request
+        { method = "POST"
+        , headers = defaultHeaders config
+        , url = config.serverUrl ++ "/verificationEmailRequest"
+        , body = Http.emptyBody
+        , expect = Http.expectJson (Decode.succeed ())
+        , timeout = Nothing
+        , withCredentials = False
+        }
+        |> Http.toTask
+        |> Task.mapError
+            (\httpError ->
+                case httpError of
+                    Http.BadStatus { status, body } ->
+                        case Decode.decodeString errorDecoder body of
+                            Ok parseError ->
+                                ParseError parseError
+
+                            Err decodeError ->
+                                DecodeError decodeError
+
+                    _ ->
+                        HttpError httpError
+            )
+
+
+{-| -}
+passwordResetRequest : Config -> String -> Task Error ()
+passwordResetRequest config email =
+    Http.request
+        { method = "POST"
+        , headers = defaultHeaders config
+        , url = config.serverUrl ++ "/requestPasswordReset"
+        , body = Http.emptyBody
+        , expect = Http.expectJson (Decode.succeed ())
+        , timeout = Nothing
+        , withCredentials = False
+        }
+        |> Http.toTask
+        |> Task.mapError
+            (\httpError ->
+                case httpError of
+                    Http.BadStatus { status, body } ->
+                        case Decode.decodeString errorDecoder body of
+                            Ok parseError ->
+                                ParseError parseError
+
+                            Err decodeError ->
+                                DecodeError decodeError
+
+                    _ ->
+                        HttpError httpError
+            )
+
+
+{-| -}
+getUser : Decoder user -> Config -> ObjectId -> Task Error user
+getUser userDecoder config (ObjectId id) =
+    request config
+        { method = "GET"
+        , urlSuffix = "/users/" ++ id
+        , body = Http.emptyBody
+        , responseDecoder = userDecoder
+        }
+
+
+{-| -}
+getCurrentUser : Decoder user -> Config -> Task Error user
+getCurrentUser userDecoder config =
+    request config
+        { method = "GET"
+        , urlSuffix = "/users/me"
+        , body = Http.emptyBody
+        , responseDecoder = userDecoder
+        }
+
+
+{-| -}
+updateUser :
+    (user -> Value)
+    -> Config
+    -> ObjectId
+    -> user
+    -> Task Error { updatedAt : Date }
+updateUser encodeUser config (ObjectId id) user =
+    request config
+        { method = "PUT"
+        , urlSuffix = "/users/" ++ id
+        , body = Http.jsonBody (encodeUser user)
+        , responseDecoder =
+            Decode.map (\updatedAt -> { updatedAt = updatedAt })
+                (Decode.field "updatedAt" dateDecoder)
+        }
+
+
+{-| -}
+deleteUser :
+    Config
+    -> ObjectId
+    -> Task Error ()
+deleteUser config (ObjectId id) =
+    request config
+        { method = "DELETE"
+        , urlSuffix = "/users/" ++ id
         , body = Http.emptyBody
         , responseDecoder = Decode.succeed ()
         }
@@ -482,6 +726,11 @@ defaultHeaders config =
         [ Just (Http.header "X-Parse-Application-Id" config.applicationId)
         , config.restAPIKey
             |> Maybe.map (Http.header "X-Parse-REST-API-Key")
+        , config.sessionToken
+            |> Maybe.map
+                (\(SessionToken token) ->
+                    Http.header "X-Parse-Session-Token" token
+                )
         ]
 
 

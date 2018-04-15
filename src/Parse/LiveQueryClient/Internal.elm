@@ -141,7 +141,7 @@ connect config =
             , config.masterKey
                 |> Maybe.map ((,) "masterKey" << Encode.string)
             , config.sessionToken
-                |> Maybe.map ((,) "sessionToken" << Encode.string)
+                |> Maybe.map ((,) "sessionToken" << Parse.encodeSessionToken)
             ]
 
 
@@ -153,7 +153,7 @@ subscribe config query requestId =
             , Just ( "requestId", Encode.int requestId )
             , Just ( "query", Parse.encodeQuery query )
             , config.sessionToken
-                |> Maybe.map ((,) "sessionToken" << Encode.string)
+                |> Maybe.map ((,) "sessionToken" << Parse.encodeSessionToken)
             ]
 
 
