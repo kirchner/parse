@@ -11,9 +11,6 @@ module Parse
             , HttpError
             , ParseError
             )
-        , ObjectId
-        , Query
-        , SessionToken
         , and
         , create
         , delete
@@ -34,14 +31,18 @@ module Parse
         , lessThanOrEqualTo
         , logIn
         , notEqualTo
+        , ObjectId
         , objectIdDecoder
         , or
         , passwordResetRequest
         , query
+        , Query
         , regex
+        , SessionToken
         , sessionTokenDecoder
         , signUp
         , simpleConfig
+        , unsafeObjectId
         , update
         , updateUser
         )
@@ -158,6 +159,12 @@ encodeSessionToken (SessionToken token) =
 {-| -}
 type ObjectId
     = ObjectId String
+
+
+{-| -}
+unsafeObjectId : String -> ObjectId
+unsafeObjectId objectId =
+    ObjectId objectId
 
 
 {-| -}
