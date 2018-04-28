@@ -250,19 +250,57 @@ delete className config (ObjectId id) =
 
 
 {-| -}
-signUp : Config -> String -> String -> Task Error { location : String }
-signUp config username password =
+signUp :
+    (user -> List ( String, Value ))
+    -> Config
+    -> String
+    -> String
+    -> user
+    ->
+        Task Error
+            { createdAt : Date
+            , objectId : ObjectId
+            , sessionToken : SessionToken
+            , location : String
+            }
+signUp encodeUser config username password user =
+    let
+        body =
+            [ ( "username", Encode.string username )
+            , ( "password", Encode.string password )
+            ]
+                ++ encodeUser user
+                |> Encode.object
+
+        bodyDecoder location =
+            Decode.map3
+                (\createdAt objectId sessionToken ->
+                    { createdAt = createdAt
+                    , objectId = objectId
+                    , sessionToken = sessionToken
+                    , location = location
+                    }
+                )
+                (Decode.field "createdAt" dateDecoder)
+                (Decode.field "objectId" objectIdDecoder)
+                (Decode.field "sessionToken" sessionTokenDecoder)
+    in
     Http.request
         { method = "POST"
         , headers =
             Http.header "X-Parse-Revocable-Session" (toString 1)
                 :: defaultHeaders config
         , url = config.serverUrl ++ "/users"
-        , body = Http.emptyBody
+        , body = Http.jsonBody body
         , expect =
-            Http.expectJson <|
-                Decode.map (\location -> { location = location }) <|
-                    Decode.field "Location" Decode.string
+            Http.expectStringResponse <|
+                \{ headers, body } ->
+                    case Dict.get "Location" (Debug.log "headers" headers) of
+                        Just location ->
+                            Decode.decodeString (bodyDecoder location) body
+
+                        Nothing ->
+                            Decode.decodeString (bodyDecoder "TODO missing location header") body
         , timeout = Nothing
         , withCredentials = False
         }
@@ -311,7 +349,14 @@ logIn userDecoder config username password =
         , headers =
             Http.header "X-Parse-Revocable-Session" (toString 1)
                 :: defaultHeaders config
-        , url = config.serverUrl ++ "/users"
+        , url =
+            [ config.serverUrl
+            , "/login?username="
+            , Http.encodeUri username
+            , "&password="
+            , Http.encodeUri password
+            ]
+                |> String.concat
         , body = Http.emptyBody
         , expect =
             Http.expectJson <|
