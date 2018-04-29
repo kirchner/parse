@@ -826,7 +826,7 @@ serializeQuery query =
     , if List.isEmpty query.include then
         Nothing
       else
-        Just (String.join "," query.include)
+        Just ("include=" ++ String.join "," query.include)
     , if query.count then
         Just "count=1"
       else
