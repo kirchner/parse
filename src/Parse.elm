@@ -11,7 +11,6 @@ module Parse
             , HttpError
             , ParseError
             )
-        , MetaInfo
         , ObjectId
         , Query
         , SessionToken
@@ -67,7 +66,7 @@ module Parse
 
 # Queries
 
-@docs query, MetaInfo, Query, emptyQuery, encodeQuery
+@docs query, Query, emptyQuery, encodeQuery
 
 
 ## Constraints
@@ -102,7 +101,6 @@ import Date exposing (Date)
 import Dict
 import Http exposing (Request)
 import Json.Decode as Decode exposing (Decoder)
-import Json.Decode.Pipeline as Decode
 import Json.Encode as Encode exposing (Value)
 import Task exposing (Task)
 
@@ -511,32 +509,14 @@ query :
     Decoder object
     -> Config
     -> Query
-    -> Task Error (List ( MetaInfo, object ))
+    -> Task Error (List object)
 query objectDecoder config query =
     request config
         { method = "GET"
         , urlSuffix = query.className ++ "?" ++ serializeQuery query
         , body = Http.emptyBody
-        , responseDecoder =
-            Decode.field "results"
-                (Decode.list <|
-                    Decode.map2 (,)
-                        (Decode.succeed MetaInfo
-                            |> Decode.required "objectId" objectIdDecoder
-                            |> Decode.required "createdAt" dateDecoder
-                            |> Decode.required "updatedAt" dateDecoder
-                        )
-                        objectDecoder
-                )
+        , responseDecoder = Decode.field "results" (Decode.list objectDecoder)
         }
-
-
-{-| -}
-type alias MetaInfo =
-    { objectId : ObjectId
-    , createdAt : Date
-    , updatedAt : Date
-    }
 
 
 {-| -}
