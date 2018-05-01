@@ -58,6 +58,7 @@ module Parse
             , ValidationError
             , XDomainRequest
             )
+        , ChangeSet
         , Config
         , Constraint
         , Error
@@ -69,6 +70,8 @@ module Parse
         , Query
         , SessionToken
         , and
+        , apply
+        , batch
         , code
         , create
         , delete
@@ -107,14 +110,16 @@ module Parse
 @docs SessionToken
 
 
-# REST Actions
+# Changing Data
 
-@docs create, get, update, delete
+@docs ChangeSet, ObjectId
 
-@docs ObjectId
+@docs create, update, delete, apply, batch
 
 
 # Queries
+
+@docs get
 
 @docs query, Query, emptyQuery, encodeQuery
 
@@ -206,22 +211,282 @@ type alias ObjectId =
 ---- ACTIONS
 
 
+{-| Opaque type modeling a bunch of changes to the data stored on your Parse
+server. You can for example `create`, `update` and `delete` objects. You still
+have to `apply` these to actually change the data on the server.
+-}
+type ChangeSet msg
+    = Create
+        { className : String
+        , body : Value
+        , tagErr : Error -> msg
+        , tagOk : Date -> ObjectId -> msg
+        }
+    | Update
+        { className : String
+        , objectId : ObjectId
+        , body : Value
+        , tagErr : Error -> msg
+        , tagOk : Date -> msg
+        }
+    | Delete
+        { className : String
+        , objectId : ObjectId
+        , tagErr : Error -> msg
+        , tagOk : () -> msg
+        }
+    | Batched
+        { tagHttpErr : Http.Error -> msg
+        , tagMsgs : List msg -> msg
+        , requests : List (ChangeSet msg)
+        }
+
+
+{-| You can batch `ChangeSet`'s together to save HTTP requests. For example:
+
+    createProjects : List String -> Cmd Msg
+    createProjects projects =
+        projects
+            |> List.map
+                (\name ->
+                    create "Project"
+                        (Encode.string name)
+                        CreateProjectFailed
+                        ProjectCreated
+                )
+            |> batch BatchFailed BatchPerformed
+            |> apply config
+
+    type Msg
+        = CreateProjectFailed Error
+        | ProjectCreated Date ObjectId
+        | BatchFailed Http.Error
+        | BatchPerformed (List Msg)
+
+    config : Config
+    config =
+        simpleConfig
+            "http://localhost:1337/parse"
+            "application_id"
+
+-}
+batch : (Http.Error -> msg) -> (List msg -> msg) -> List (ChangeSet msg) -> ChangeSet msg
+batch tagHttpErr tagMsgs requests =
+    Batched
+        { tagHttpErr = tagHttpErr
+        , tagMsgs = tagMsgs
+        , requests =
+            requests
+                |> List.foldl
+                    (\request flattenedList ->
+                        case request of
+                            Batched { requests } ->
+                                requests ++ flattenedList
+
+                            _ ->
+                                request :: flattenedList
+                    )
+                    []
+        }
+
+
+{-| Turn a `ChangeSet` into a command telling the Elm runtime to issue the actual
+HTTP requests to the Parse server.
+-}
+apply : Config -> ChangeSet msg -> Cmd msg
+apply config request =
+    let
+        singleRequest method urlSuffix body tagErr responseDecoder =
+            Http.request
+                { method = method
+                , headers = defaultHeaders config
+                , url = config.serverUrl ++ "/classes/" ++ urlSuffix
+                , body = body
+                , expect =
+                    Http.expectJson responseDecoder
+                , timeout = Nothing
+                , withCredentials = False
+                }
+                |> Http.toTask
+                |> Task.mapError
+                    (\httpError ->
+                        case httpError of
+                            Http.BadStatus { status, body } ->
+                                case Decode.decodeString errorDecoder body of
+                                    Ok parseError ->
+                                        ParseError parseError
+
+                                    Err decodeError ->
+                                        DecodeError decodeError
+
+                            _ ->
+                                HttpError httpError
+                    )
+                |> Task.attempt
+                    (\result ->
+                        case result of
+                            Err err ->
+                                tagErr err
+
+                            Ok msg ->
+                                msg
+                    )
+
+        singleRequestInBatch method urlSuffix body tagErr okDecoder ( index, requestList, expectList ) =
+            ( index + 1
+            , Encode.object
+                [ ( "method", Encode.string method )
+                , ( "path", Encode.string ("/parse/classes/" ++ urlSuffix) )
+                , ( "body", body )
+                ]
+                :: requestList
+            , Decode.at [ "childNodes", toString index ]
+                (Decode.oneOf
+                    [ okDecoder
+                    , Decode.map (ParseError >> tagErr) errorDecoder
+                    ]
+                )
+                :: expectList
+            )
+    in
+    case request of
+        Create { className, body, tagErr, tagOk } ->
+            singleRequest "POST" className (Http.jsonBody body) tagErr <|
+                Decode.map2 tagOk
+                    (Decode.field "createdAt" Decode.date)
+                    (Decode.field "objectId" Decode.objectId)
+
+        Update { className, objectId, body, tagErr, tagOk } ->
+            let
+                (Internal.ObjectId id) =
+                    objectId
+            in
+            singleRequest "PUT" (className ++ "/" ++ id) (Http.jsonBody body) tagErr <|
+                Decode.map tagOk <|
+                    Decode.field "updatedAt" Decode.date
+
+        Delete { className, objectId, tagErr, tagOk } ->
+            let
+                (Internal.ObjectId id) =
+                    objectId
+            in
+            singleRequest "DELETE" (className ++ "/" ++ id) Http.emptyBody tagErr <|
+                Decode.map tagOk <|
+                    Decode.succeed ()
+
+        Batched { tagHttpErr, tagMsgs, requests } ->
+            let
+                ( _, requestList, expectList ) =
+                    -- TODO: split these in lists of 50 elements each
+                    requests
+                        |> List.foldl
+                            (\request ->
+                                case request of
+                                    Create { className, body, tagErr, tagOk } ->
+                                        singleRequestInBatch "POST" className body tagErr <|
+                                            Decode.map2 tagOk
+                                                (Decode.field "createdAt" Decode.date)
+                                                (Decode.field "objectId" Decode.objectId)
+
+                                    Update { className, body, tagErr, tagOk } ->
+                                        singleRequestInBatch "PUT" className body tagErr <|
+                                            Decode.map tagOk
+                                                (Decode.field "updatedAt" Decode.date)
+
+                                    _ ->
+                                        identity
+                            )
+                            ( 0, [], [] )
+            in
+            Http.request
+                { method = "POST"
+                , headers = defaultHeaders config
+                , url = config.serverUrl ++ "/batch"
+                , body =
+                    [ ( "requests"
+                      , Encode.list requestList
+                      )
+                    ]
+                        |> Encode.object
+                        |> Http.jsonBody
+                , expect =
+                    Http.expectJson
+                        (expectList
+                            |> List.foldl
+                                (\decoder previousDecoder ->
+                                    previousDecoder
+                                        |> Decode.andThen
+                                            (\msgs ->
+                                                decoder
+                                                    |> Decode.map (\nextMsg -> nextMsg :: msgs)
+                                            )
+                                )
+                                (Decode.succeed [])
+                        )
+                , timeout = Nothing
+                , withCredentials = False
+                }
+                |> Http.toTask
+                |> Task.attempt
+                    (\result ->
+                        case result of
+                            Err httpErr ->
+                                tagHttpErr httpErr
+
+                            Ok msgs ->
+                                tagMsgs msgs
+                    )
+
+
 {-| -}
 create :
     String
     -> (object -> Value)
-    -> Config
+    -> (Error -> msg)
+    -> (Date -> ObjectId -> msg)
     -> object
-    -> Task Error { createdAt : Date, objectId : ObjectId }
-create className encodeObject config object =
-    request config
-        { method = "POST"
-        , urlSuffix = className
-        , body = Http.jsonBody (encodeObject object)
-        , responseDecoder =
-            Decode.map2 (\createdAt objectId -> { createdAt = createdAt, objectId = objectId })
-                (Decode.field "createdAt" Decode.date)
-                (Decode.field "objectId" Decode.objectId)
+    -> ChangeSet msg
+create className encodeObject tagErr tagOk object =
+    Create
+        { className = className
+        , body = encodeObject object
+        , tagErr = tagErr
+        , tagOk = tagOk
+        }
+
+
+{-| -}
+update :
+    String
+    -> (object -> Value)
+    -> (Error -> msg)
+    -> (Date -> msg)
+    -> ObjectId
+    -> object
+    -> ChangeSet msg
+update className encodeObject tagErr tagOk objectId object =
+    Update
+        { className = className
+        , objectId = objectId
+        , body = encodeObject object
+        , tagErr = tagErr
+        , tagOk = tagOk
+        }
+
+
+{-| -}
+delete :
+    String
+    -> (Error -> msg)
+    -> (() -> msg)
+    -> ObjectId
+    -> ChangeSet msg
+delete className tagErr tagOk objectId =
+    Delete
+        { className = className
+        , objectId = objectId
+        , tagErr = tagErr
+        , tagOk = tagOk
         }
 
 
@@ -238,40 +503,6 @@ get className objectDecoder config (Internal.ObjectId id) =
         , urlSuffix = className ++ "/" ++ id
         , body = Http.emptyBody
         , responseDecoder = objectDecoder
-        }
-
-
-{-| -}
-update :
-    String
-    -> (object -> Value)
-    -> Config
-    -> ObjectId
-    -> object
-    -> Task Error { updatedAt : Date }
-update className encodeObject config (Internal.ObjectId id) object =
-    request config
-        { method = "PUT"
-        , urlSuffix = className ++ "/" ++ id
-        , body = Http.jsonBody (encodeObject object)
-        , responseDecoder =
-            Decode.map (\updatedAt -> { updatedAt = updatedAt })
-                (Decode.field "updatedAt" Decode.date)
-        }
-
-
-{-| -}
-delete :
-    String
-    -> Config
-    -> ObjectId
-    -> Task Error ()
-delete className config (Internal.ObjectId id) =
-    request config
-        { method = "DELETE"
-        , urlSuffix = className ++ "/" ++ id
-        , body = Http.emptyBody
-        , responseDecoder = Decode.succeed ()
         }
 
 
