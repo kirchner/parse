@@ -99,6 +99,8 @@ module Parse
 import Date exposing (Date)
 import Dict
 import Http exposing (Request)
+import Internal.ObjectId as Internal
+import Internal.SessionToken as Internal
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
 import Task exposing (Task)
@@ -135,19 +137,19 @@ simpleConfig serverUrl applicationId =
 
 
 {-| -}
-type SessionToken
-    = SessionToken String
+type alias SessionToken =
+    Internal.SessionToken
 
 
 {-| -}
 sessionTokenDecoder : Decoder SessionToken
 sessionTokenDecoder =
-    Decode.map SessionToken Decode.string
+    Decode.map Internal.SessionToken Decode.string
 
 
 {-| -}
 encodeSessionToken : SessionToken -> Value
-encodeSessionToken (SessionToken token) =
+encodeSessionToken (Internal.SessionToken token) =
     Encode.string token
 
 
@@ -156,19 +158,19 @@ encodeSessionToken (SessionToken token) =
 
 
 {-| -}
-type ObjectId
-    = ObjectId String
+type alias ObjectId =
+    Internal.ObjectId
 
 
 {-| -}
 objectIdDecoder : Decoder ObjectId
 objectIdDecoder =
-    Decode.map ObjectId Decode.string
+    Decode.map Internal.ObjectId Decode.string
 
 
 {-| -}
 encodeObjectId : ObjectId -> Value
-encodeObjectId (ObjectId id) =
+encodeObjectId (Internal.ObjectId id) =
     Encode.string id
 
 
@@ -202,7 +204,7 @@ get :
     -> Config
     -> ObjectId
     -> Task Error object
-get className objectDecoder config (ObjectId id) =
+get className objectDecoder config (Internal.ObjectId id) =
     request config
         { method = "GET"
         , urlSuffix = className ++ "/" ++ id
@@ -219,7 +221,7 @@ update :
     -> ObjectId
     -> object
     -> Task Error { updatedAt : Date }
-update className encodeObject config (ObjectId id) object =
+update className encodeObject config (Internal.ObjectId id) object =
     request config
         { method = "PUT"
         , urlSuffix = className ++ "/" ++ id
@@ -236,7 +238,7 @@ delete :
     -> Config
     -> ObjectId
     -> Task Error ()
-delete className config (ObjectId id) =
+delete className config (Internal.ObjectId id) =
     request config
         { method = "DELETE"
         , urlSuffix = className ++ "/" ++ id
@@ -441,7 +443,7 @@ passwordResetRequest config email =
 
 {-| -}
 getUser : Decoder user -> Config -> ObjectId -> Task Error user
-getUser userDecoder config (ObjectId id) =
+getUser userDecoder config (Internal.ObjectId id) =
     request config
         { method = "GET"
         , urlSuffix = "/users/" ++ id
@@ -468,7 +470,7 @@ updateUser :
     -> ObjectId
     -> user
     -> Task Error { updatedAt : Date }
-updateUser encodeUser config (ObjectId id) user =
+updateUser encodeUser config (Internal.ObjectId id) user =
     request config
         { method = "PUT"
         , urlSuffix = "/users/" ++ id
@@ -484,7 +486,7 @@ deleteUser :
     Config
     -> ObjectId
     -> Task Error ()
-deleteUser config (ObjectId id) =
+deleteUser config (Internal.ObjectId id) =
     request config
         { method = "DELETE"
         , urlSuffix = "/users/" ++ id
@@ -773,7 +775,7 @@ defaultHeaders config =
             |> Maybe.map (Http.header "X-Parse-REST-API-Key")
         , config.sessionToken
             |> Maybe.map
-                (\(SessionToken token) ->
+                (\(Internal.SessionToken token) ->
                     Http.header "X-Parse-Session-Token" token
                 )
         ]
