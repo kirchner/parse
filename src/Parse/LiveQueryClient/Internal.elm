@@ -11,6 +11,7 @@ module Parse.LiveQueryClient.Internal
 import Json.Decode as Json exposing (Decoder, Value)
 import Json.Encode as Encode
 import Parse exposing (Config, Query)
+import Parse.Encode as Encode
 
 
 type Msg m
@@ -141,7 +142,7 @@ connect config =
             , config.masterKey
                 |> Maybe.map ((,) "masterKey" << Encode.string)
             , config.sessionToken
-                |> Maybe.map ((,) "sessionToken" << Parse.encodeSessionToken)
+                |> Maybe.map ((,) "sessionToken" << Encode.sessionToken)
             ]
 
 
@@ -153,7 +154,7 @@ subscribe config query requestId =
             , Just ( "requestId", Encode.int requestId )
             , Just ( "query", Parse.encodeQuery query )
             , config.sessionToken
-                |> Maybe.map ((,) "sessionToken" << Parse.encodeSessionToken)
+                |> Maybe.map ((,) "sessionToken" << Encode.sessionToken)
             ]
 
 

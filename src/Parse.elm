@@ -20,9 +20,7 @@ module Parse
         , deleteUser
         , emailVerificationRequest
         , emptyQuery
-        , encodeObjectId
         , encodeQuery
-        , encodeSessionToken
         , equalTo
         , exists
         , get
@@ -34,12 +32,10 @@ module Parse
         , lessThanOrEqualTo
         , logIn
         , notEqualTo
-        , objectIdDecoder
         , or
         , passwordResetRequest
         , query
         , regex
-        , sessionTokenDecoder
         , signUp
         , simpleConfig
         , update
@@ -53,14 +49,14 @@ module Parse
 
 @docs Config, simpleConfig
 
-@docs SessionToken, sessionTokenDecoder, encodeSessionToken
+@docs SessionToken
 
 
 # REST Actions
 
 @docs create, get, update, delete
 
-@docs ObjectId, objectIdDecoder, encodeObjectId
+@docs ObjectId
 
 
 # Queries
@@ -103,6 +99,7 @@ import Internal.ObjectId as Internal
 import Internal.SessionToken as Internal
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
+import Parse.Decode as Decode
 import Task exposing (Task)
 
 
@@ -141,18 +138,6 @@ type alias SessionToken =
     Internal.SessionToken
 
 
-{-| -}
-sessionTokenDecoder : Decoder SessionToken
-sessionTokenDecoder =
-    Decode.map Internal.SessionToken Decode.string
-
-
-{-| -}
-encodeSessionToken : SessionToken -> Value
-encodeSessionToken (Internal.SessionToken token) =
-    Encode.string token
-
-
 
 ---- OBJECTS
 
@@ -160,18 +145,6 @@ encodeSessionToken (Internal.SessionToken token) =
 {-| -}
 type alias ObjectId =
     Internal.ObjectId
-
-
-{-| -}
-objectIdDecoder : Decoder ObjectId
-objectIdDecoder =
-    Decode.map Internal.ObjectId Decode.string
-
-
-{-| -}
-encodeObjectId : ObjectId -> Value
-encodeObjectId (Internal.ObjectId id) =
-    Encode.string id
 
 
 
@@ -193,7 +166,7 @@ create className encodeObject config object =
         , responseDecoder =
             Decode.map2 (\createdAt objectId -> { createdAt = createdAt, objectId = objectId })
                 (Decode.field "createdAt" dateDecoder)
-                (Decode.field "objectId" objectIdDecoder)
+                (Decode.field "objectId" Decode.objectId)
         }
 
 
@@ -284,8 +257,8 @@ signUp encodeUser config username password user =
                     }
                 )
                 (Decode.field "createdAt" dateDecoder)
-                (Decode.field "objectId" objectIdDecoder)
-                (Decode.field "sessionToken" sessionTokenDecoder)
+                (Decode.field "objectId" Decode.objectId)
+                (Decode.field "sessionToken" Decode.sessionToken)
     in
     Http.request
         { method = "POST"
@@ -344,7 +317,7 @@ logIn userDecoder config username password =
                     }
                 )
                 userDecoder
-                (Decode.field "sessionToken" sessionTokenDecoder)
+                (Decode.field "sessionToken" Decode.sessionToken)
     in
     Http.request
         { method = "GET"
