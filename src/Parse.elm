@@ -42,7 +42,6 @@ module Parse
         , sessionTokenDecoder
         , signUp
         , simpleConfig
-        , unsafeObjectId
         , update
         , updateUser
         )
@@ -61,7 +60,7 @@ module Parse
 
 @docs create, get, update, delete
 
-@docs ObjectId, objectIdDecoder, encodeObjectId, unsafeObjectId
+@docs ObjectId, objectIdDecoder, encodeObjectId
 
 
 # Queries
@@ -159,12 +158,6 @@ encodeSessionToken (SessionToken token) =
 {-| -}
 type ObjectId
     = ObjectId String
-
-
-{-| -}
-unsafeObjectId : String -> ObjectId
-unsafeObjectId objectId =
-    ObjectId objectId
 
 
 {-| -}
