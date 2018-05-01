@@ -1,6 +1,6 @@
 module Parse
     exposing
-        ( Code
+        ( Cause
             ( AccountAlreadyLinked
             , AggregateError
             , CacheMiss
@@ -69,6 +69,7 @@ module Parse
         , Query
         , SessionToken
         , and
+        , code
         , create
         , delete
         , deleteUser
@@ -142,7 +143,7 @@ module Parse
 
 # Errors
 
-@docs Error, Code
+@docs Error, Cause, code
 
 -}
 
@@ -949,7 +950,7 @@ encodeFieldConstraint fieldConstraint =
 {-| -}
 type Error
     = ParseError
-        { code : Code
+        { cause : Cause
         , error : String
         }
     | HttpError Http.Error
@@ -957,7 +958,7 @@ type Error
 
 
 {-| -}
-type Code
+type Cause
     = OtherCause
     | InternalServerError
     | ConnectionFailed
@@ -1016,16 +1017,17 @@ type Code
     | XDomainRequest
 
 
-errorDecoder : Decoder { code : Code, error : String }
+errorDecoder : Decoder { cause : Cause, error : String }
 errorDecoder =
-    Decode.map2 (\code error -> { code = code, error = error })
-        (Decode.field "code" codeDecoder)
+    Decode.map2 (\cause error -> { cause = cause, error = error })
+        (Decode.field "code" causeDecoder)
         (Decode.field "error" Decode.string)
 
 
-codeAsInt : Code -> Int
-codeAsInt code =
-    case code of
+{-| -}
+code : Cause -> Int
+code cause =
+    case cause of
         OtherCause ->
             -1
 
@@ -1195,12 +1197,12 @@ codeAsInt code =
             602
 
 
-codeDecoder : Decoder Code
-codeDecoder =
+causeDecoder : Decoder Cause
+causeDecoder =
     Decode.int
         |> Decode.andThen
-            (\rawCode ->
-                case rawCode of
+            (\code ->
+                case code of
                     (-1) ->
                         Decode.succeed OtherCause
 
@@ -1371,7 +1373,7 @@ codeDecoder =
 
                     _ ->
                         [ "'"
-                        , toString rawCode
+                        , toString code
                         , "' is not a valid Parse error code"
                         ]
                             |> String.concat
