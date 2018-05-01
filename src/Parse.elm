@@ -220,7 +220,7 @@ create className encodeObject config object =
         , body = Http.jsonBody (encodeObject object)
         , responseDecoder =
             Decode.map2 (\createdAt objectId -> { createdAt = createdAt, objectId = objectId })
-                (Decode.field "createdAt" dateDecoder)
+                (Decode.field "createdAt" Decode.date)
                 (Decode.field "objectId" Decode.objectId)
         }
 
@@ -256,7 +256,7 @@ update className encodeObject config (Internal.ObjectId id) object =
         , body = Http.jsonBody (encodeObject object)
         , responseDecoder =
             Decode.map (\updatedAt -> { updatedAt = updatedAt })
-                (Decode.field "updatedAt" dateDecoder)
+                (Decode.field "updatedAt" Decode.date)
         }
 
 
@@ -311,7 +311,7 @@ signUp encodeUser config username password user =
                     , location = location
                     }
                 )
-                (Decode.field "createdAt" dateDecoder)
+                (Decode.field "createdAt" Decode.date)
                 (Decode.field "objectId" Decode.objectId)
                 (Decode.field "sessionToken" Decode.sessionToken)
     in
@@ -505,7 +505,7 @@ updateUser encodeUser config (Internal.ObjectId id) user =
         , body = Http.jsonBody (encodeUser user)
         , responseDecoder =
             Decode.map (\updatedAt -> { updatedAt = updatedAt })
-                (Decode.field "updatedAt" dateDecoder)
+                (Decode.field "updatedAt" Decode.date)
         }
 
 
@@ -1375,28 +1375,6 @@ causeDecoder =
                         [ "'"
                         , toString code
                         , "' is not a valid Parse error code"
-                        ]
-                            |> String.concat
-                            |> Decode.fail
-            )
-
-
-
----- HELPER
-
-
-dateDecoder : Decoder Date
-dateDecoder =
-    Decode.string
-        |> Decode.andThen
-            (\rawDate ->
-                case Date.fromString rawDate of
-                    Ok date ->
-                        Decode.succeed date
-
-                    Err error ->
-                        [ "could not parse date: "
-                        , error
                         ]
                             |> String.concat
                             |> Decode.fail
