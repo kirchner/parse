@@ -65,6 +65,7 @@ module Parse
             , HttpError
             , ParseError
             )
+        , Object
         , ObjectId
         , Query
         , SessionToken
@@ -111,6 +112,7 @@ module Parse
 
 @docs create, get, update, delete
 
+@docs Object
 @docs ObjectId
 
 
@@ -200,6 +202,13 @@ type alias SessionToken =
 {-| -}
 type alias ObjectId =
     Internal.ObjectId
+
+
+type alias Object a =
+    { a | objectId : ObjectId
+        , createdAt : Date
+        , updatedAt : Date
+    }
 
 
 
