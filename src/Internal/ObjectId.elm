@@ -1,5 +1,5 @@
 module Internal.ObjectId exposing (..)
 
 
-type ObjectId
+type ObjectId a
     = ObjectId String

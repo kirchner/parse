@@ -20,6 +20,7 @@ module Parse.Decode
 
 import Date exposing (Date)
 import Internal.ObjectId exposing (..)
+import Internal.Pointer exposing (..)
 import Internal.SessionToken exposing (..)
 import Json.Decode as Decode exposing (Decoder)
 
@@ -31,7 +32,7 @@ sessionToken =
 
 
 {-| -}
-objectId : Decoder ObjectId
+objectId : Decoder (ObjectId a)
 objectId =
     Decode.map ObjectId Decode.string
 
@@ -60,7 +61,7 @@ date =
 
 
 {-| -}
-pointer : String -> Decoder ObjectId
+pointer : String -> Decoder (Pointer a)
 pointer className =
     parseTypeDecoder "Pointer"
         (Decode.field "className" Decode.string
@@ -76,7 +77,8 @@ pointer className =
                             |> String.concat
                             |> Decode.fail
                     else
-                        Decode.field "objectId" objectId
+                        Decode.map (Pointer className)
+                            (Decode.field "objectId" objectId)
                 )
         )
 

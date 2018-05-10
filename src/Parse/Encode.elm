@@ -20,6 +20,7 @@ module Parse.Encode
 
 import Date exposing (Date)
 import Internal.ObjectId exposing (..)
+import Internal.Pointer exposing (..)
 import Internal.SessionToken exposing (..)
 import Json.Encode as Encode exposing (Value)
 import Time.DateTime
@@ -32,7 +33,7 @@ sessionToken (SessionToken token) =
 
 
 {-| -}
-objectId : ObjectId -> Value
+objectId : ObjectId a -> Value
 objectId (ObjectId id) =
     Encode.string id
 
@@ -53,10 +54,12 @@ date date =
 
 
 {-| -}
-pointer : String -> ObjectId -> Value
-pointer className id =
-    [ ( "__type", Encode.string "Pointer" )
-    , ( "className", Encode.string className )
-    , ( "objectId", objectId id )
-    ]
-        |> Encode.object
+pointer : String -> Pointer a -> Value
+pointer className pointer =
+  case pointer of
+    Pointer className id ->
+        [ ( "__type", Encode.string "Pointer" )
+        , ( "className", Encode.string className )
+        , ( "objectId", objectId id )
+        ]
+            |> Encode.object

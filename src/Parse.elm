@@ -67,6 +67,7 @@ module Parse
             )
         , Object
         , ObjectId
+        , Pointer
         , Query
         , SessionToken
         , and
@@ -152,7 +153,9 @@ module Parse
 import Date exposing (Date)
 import Dict
 import Http exposing (Request)
+import Internal.Object as Internal
 import Internal.ObjectId as Internal
+import Internal.Pointer as Internal
 import Internal.SessionToken as Internal
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
@@ -200,15 +203,20 @@ type alias SessionToken =
 
 
 {-| -}
-type alias ObjectId =
-    Internal.ObjectId
+type alias ObjectId a =
+    Internal.ObjectId a
 
 
+{-| -}
 type alias Object a =
-    { a | objectId : ObjectId
-        , createdAt : Date
-        , updatedAt : Date
-    }
+    Internal.Object a
+
+
+-- POINTERS
+
+{-| -}
+type alias Pointer a =
+    Internal.Pointer a
 
 
 
@@ -221,7 +229,7 @@ create :
     -> (object -> Value)
     -> Config
     -> object
-    -> Task Error { createdAt : Date, objectId : ObjectId }
+    -> Task Error { createdAt : Date, objectId : ObjectId a }
 create className encodeObject config object =
     request config
         { method = "POST"
@@ -239,7 +247,7 @@ get :
     String
     -> Decoder object
     -> Config
-    -> ObjectId
+    -> ObjectId a
     -> Task Error object
 get className objectDecoder config (Internal.ObjectId id) =
     request config
@@ -255,7 +263,7 @@ update :
     String
     -> (object -> Value)
     -> Config
-    -> ObjectId
+    -> ObjectId a
     -> object
     -> Task Error { updatedAt : Date }
 update className encodeObject config (Internal.ObjectId id) object =
@@ -273,7 +281,7 @@ update className encodeObject config (Internal.ObjectId id) object =
 delete :
     String
     -> Config
-    -> ObjectId
+    -> ObjectId a
     -> Task Error ()
 delete className config (Internal.ObjectId id) =
     request config
@@ -298,7 +306,7 @@ signUp :
     ->
         Task Error
             { createdAt : Date
-            , objectId : ObjectId
+            , objectId : ObjectId a
             , sessionToken : SessionToken
             , location : String
             }
@@ -479,7 +487,7 @@ passwordResetRequest config email =
 
 
 {-| -}
-getUser : Decoder user -> Config -> ObjectId -> Task Error user
+getUser : Decoder user -> Config -> ObjectId a -> Task Error user
 getUser userDecoder config (Internal.ObjectId id) =
     request config
         { method = "GET"
@@ -504,7 +512,7 @@ getCurrentUser userDecoder config =
 updateUser :
     (user -> Value)
     -> Config
-    -> ObjectId
+    -> ObjectId a
     -> user
     -> Task Error { updatedAt : Date }
 updateUser encodeUser config (Internal.ObjectId id) user =
@@ -521,7 +529,7 @@ updateUser encodeUser config (Internal.ObjectId id) user =
 {-| -}
 deleteUser :
     Config
-    -> ObjectId
+    -> ObjectId a
     -> Task Error ()
 deleteUser config (Internal.ObjectId id) =
     request config
