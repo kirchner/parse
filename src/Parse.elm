@@ -67,7 +67,9 @@ module Parse
             )
         , Object
         , ObjectId
+        , equal
         , Pointer
+        , pointer
         , Query
         , SessionToken
         , and
@@ -115,6 +117,12 @@ module Parse
 
 @docs Object
 @docs ObjectId
+@docs equal
+
+# Pointers
+
+@docs Pointer
+@docs pointer
 
 
 # Queries
@@ -208,6 +216,13 @@ type alias ObjectId a =
 
 
 {-| -}
+equal : ObjectId a -> ObjectId a -> Bool
+equal a b =
+    case ( a, b ) of
+      ( Internal.ObjectId idA, Internal.ObjectId idB ) -> idA == idB
+
+
+{-| -}
 type alias Object a =
     Internal.Object a
 
@@ -217,6 +232,12 @@ type alias Object a =
 {-| -}
 type alias Pointer a =
     Internal.Pointer a
+
+
+{-| -}
+pointer : String -> ObjectId a -> Pointer a
+pointer className objectId =
+    Internal.Pointer className objectId
 
 
 
