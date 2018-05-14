@@ -7,3 +7,4 @@ examples/rest/_site/
 examples/live-query/_site/
 *.log
 node_modules/
+data

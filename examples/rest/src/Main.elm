@@ -1,13 +1,14 @@
 module Main exposing (main)
 
 import Date exposing (Date)
-import Html exposing (Html)
 import Html.Attributes as Attributes
 import Html.Events as Events
+import Html exposing (Html)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as Decode
 import Json.Encode as Encode exposing (Value)
-import Parse exposing (Error, ObjectId, Query)
+import Parse.Decode as Parse
+import Parse exposing (Error, Object, ObjectId, Query)
 import Task exposing (Task)
 
 
@@ -24,7 +25,7 @@ main =
 type alias Model =
     { title : String
     , description : String
-    , events : List Event
+    , events : List (Object Event)
     , titleQuery : String
     , descriptionQuery : String
     }
@@ -59,14 +60,14 @@ type Msg
     = TitleUpdated String
     | DescriptionUpdated String
     | FormSubmitted
-    | EventCreated { createdAt : Date, objectId : ObjectId }
+    | EventCreated { createdAt : Date, objectId : ObjectId Event }
     | EventCreateFailed Error
-    | EventReceived Event
+    | EventReceived (Object Event)
     | EventGetFailed Error
-    | EventsReceived (List Event)
+    | EventsReceived (List (Object Event))
     | EventGetAllFailed Error
-    | DeleteEventClicked ObjectId
-    | EventDeleted ()
+    | DeleteEventClicked (ObjectId Event)
+    | EventDeleted {}
     | EventDeleteFailed Error
       -- FILTER
     | FilterFormSubmitted
@@ -180,7 +181,6 @@ update msg model =
             ( model
             , Parse.query
                 eventDecoder
-                parseConfig
                 { className = "Event"
                 , whereClause =
                     Parse.and
@@ -195,6 +195,7 @@ update msg model =
                 , limit = Nothing
                 , skip = Nothing
                 }
+                |> Parse.toTask parseConfig
                 |> Task.attempt
                     (\result ->
                         case result of
@@ -233,36 +234,36 @@ parseConfig =
 
 ---- CLASSES
 
-
 type alias Event =
-    { objectId : ObjectId
-    , title : String
+    { title : String
     , description : String
     }
 
 
 createEvent :
-    { title : String
-    , description : String
-    }
-    -> Task Error { createdAt : Date, objectId : ObjectId }
-createEvent =
-    Parse.create "Event" encodeEvent parseConfig
+    Event
+    -> Task Error { createdAt : Date, objectId : ObjectId Event }
+createEvent event =
+    Parse.toTask parseConfig <|
+      Parse.create "Event" encodeEvent event
 
 
-getEvent : ObjectId -> Task Error Event
-getEvent =
-    Parse.get "Event" eventDecoder parseConfig
+getEvent : ObjectId Event -> Task Error (Object Event)
+getEvent objectId =
+    Parse.toTask parseConfig <|
+      Parse.get "Event" eventDecoder objectId
 
 
-getAllEvents : Task Error (List Event)
+getAllEvents : Task Error (List (Object Event))
 getAllEvents =
-    Parse.query eventDecoder parseConfig (Parse.emptyQuery "Event")
+  Parse.toTask parseConfig <|
+    Parse.query eventDecoder (Parse.emptyQuery "Event")
 
 
-deleteEvent : ObjectId -> Task Error ()
-deleteEvent =
-    Parse.delete "Event" parseConfig
+deleteEvent : ObjectId Event -> Task Error {}
+deleteEvent objectId =
+  Parse.toTask parseConfig <|
+    Parse.delete "Event" objectId
 
 
 encodeEvent : { title : String, description : String } -> Value
@@ -273,10 +274,19 @@ encodeEvent event =
         |> Encode.object
 
 
-eventDecoder : Decoder Event
+eventDecoder : Decoder (Object Event)
 eventDecoder =
-    Decode.succeed Event
-        |> Decode.required "objectId" Parse.objectIdDecoder
+    Decode.succeed (\objectId createdAt updatedAt title description ->
+      { objectId = objectId
+      , createdAt = createdAt
+      , updatedAt = updatedAt
+      , title = title
+      , description = description
+      }
+      )
+        |> Decode.required "objectId" Parse.objectId
+        |> Decode.required "createdAt" Parse.date
+        |> Decode.required "updatedAt" Parse.date
         |> Decode.required "title" Decode.string
         |> Decode.required "description" Decode.string
 
@@ -348,7 +358,7 @@ view model =
         ]
 
 
-viewEvent : Event -> Html Msg
+viewEvent : Object Event -> Html Msg
 viewEvent event =
     Html.li []
         [ Html.strong [] [ Html.text event.title ]

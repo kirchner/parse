@@ -86,7 +86,8 @@ init =
         , Cmd.batch
             [ liveQueryClientCmds
             , Task.attempt UserInit <|
-                Parse.query decodeUser restConfig (Parse.emptyQuery "_User")
+                Parse.toTask restConfig <|
+                  Parse.query decodeUser (Parse.emptyQuery "_User")
             ]
         )
 
