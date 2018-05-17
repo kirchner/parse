@@ -64,6 +64,10 @@ module Parse
         , postAt
         , getConfig
         , updateConfig
+        , GeoPoint
+        , geoPoint
+        , latitude
+        , longitude
         )
 
 {-|
@@ -160,6 +164,14 @@ module Parse
 @docs deleteRoles
 
 
+# GeoPoints
+
+@docs GeoPoint
+@docs geoPoint
+@docs latitude
+@docs longitude
+
+
 # Config
 
 @docs getConfig
@@ -187,6 +199,7 @@ import Internal.Analytics
 import Internal.CloudCode
 import Internal.Config
 import Internal.Error
+import Internal.GeoPoint
 import Internal.Object
 import Internal.ObjectId
 import Internal.Pointer
@@ -680,6 +693,37 @@ toTask =
 send : Config -> (Result Error a -> m) -> Request a -> Cmd m
 send =
     Internal.Request.send
+
+
+
+-- GEOPOINTS
+
+
+{-| TODO
+-}
+type alias GeoPoint =
+    Internal.GeoPoint.GeoPoint
+
+
+{-| TODO
+-}
+geoPoint : { latitude : Float, longitude : Float } -> GeoPoint
+geoPoint =
+    Internal.GeoPoint.geoPoint
+
+
+{-| TODO
+-}
+latitude : GeoPoint -> Float
+latitude =
+    Internal.GeoPoint.latitude
+
+
+{-| TODO
+-}
+longitude : GeoPoint -> Float
+longitude =
+    Internal.GeoPoint.longitude
 
 
 

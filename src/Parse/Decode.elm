@@ -4,17 +4,16 @@ module Parse.Decode
         , objectId
         , pointer
         , sessionToken
+        , parseTypeDecoder -- TODO(aforemny) Do not expose
         )
 
 {-|
 
 @docs sessionToken
-
 @docs objectId
-
 @docs date
-
 @docs pointer
+@docs parseTypeDecoder
 
 -}
 
@@ -87,6 +86,8 @@ pointer className =
 ---- HELPER
 
 
+{-|
+-}
 parseTypeDecoder : String -> Decoder a -> Decoder a
 parseTypeDecoder expectedType decoder =
     Decode.field "__type" Decode.string
