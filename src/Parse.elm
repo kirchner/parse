@@ -57,6 +57,8 @@ module Parse
         , Permissions
         , simple
         , extended
+        , function
+        , job
         )
 
 {-|
@@ -145,6 +147,11 @@ module Parse
 @docs deleteUsers
 @docs addRoles
 @docs deleteRoles
+
+# Cloud code
+
+@docs function
+@docs job
 -}
 
 import Date exposing (Date)
@@ -152,6 +159,7 @@ import Dict
 import Http exposing (Request)
 import Internal.ACL
 import Internal.ACL.Types
+import Internal.CloudCode
 import Internal.Config
 import Internal.Error
 import Internal.Object
@@ -647,3 +655,21 @@ toTask =
 send : Config -> (Result Error a -> m) -> Request a -> Cmd m
 send =
     Internal.Request.send
+
+
+
+-- CLOUD CODE
+
+
+{-| TODO
+-}
+function : String -> Decoder a -> Value -> Request a
+function =
+    Internal.CloudCode.function
+
+
+{-| TODO
+-}
+job : String -> Value -> Request {}
+job =
+    Internal.CloudCode.job
