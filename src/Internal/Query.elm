@@ -19,7 +19,7 @@ query :
 query objectDecoder query =
     request
         { method = "GET"
-        , endpoint = "/" ++ query.className ++ "?" ++ serializeQuery query
+        , endpoint = "/classes/" ++ query.className ++ "?" ++ serializeQuery query
         , body = Nothing
         , decoder = Decode.field "results" (Decode.list objectDecoder)
         }
