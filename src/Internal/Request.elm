@@ -22,6 +22,14 @@ headers config =
         [ Just (Http.header "X-Parse-Application-Id" config.applicationId)
         , config.restAPIKey
             |> Maybe.map (Http.header "X-Parse-REST-API-Key")
+        , config.javascriptKey
+            |> Maybe.map (Http.header "X-Parse-JavaScript-Key")
+        , config.clientKey
+            |> Maybe.map (Http.header "X-Parse-Client-Key")
+        , config.windowsKey
+            |> Maybe.map (Http.header "X-Parse-Windows-Key")
+        , config.masterKey
+            |> Maybe.map (Http.header "X-Parse-Master-Key")
         , config.sessionToken
             |> Maybe.map SessionToken.toString
             |> Maybe.map (Http.header "X-Parse-Session-Token")
