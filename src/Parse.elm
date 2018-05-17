@@ -62,6 +62,8 @@ module Parse
         , Event
         , post
         , postAt
+        , getConfig
+        , updateConfig
         )
 
 {-|
@@ -74,14 +76,14 @@ module Parse
 @docs SessionToken
 
 
-# Request
+# Getting started
 
 @docs Request
 @docs send
 @docs toTask
 
 
-# REST Actions
+# Objects
 
 @docs create, get, update, delete
 
@@ -126,6 +128,7 @@ module Parse
 
 @docs Error, Cause, code
 
+
 # ACL
 
 @docs ACL
@@ -133,9 +136,13 @@ module Parse
 @docs acl
 @docs anybody, users, roles
 
+
+## Permissions
+
 @docs Permissions
 @docs simple
 @docs extended
+
 
 # Roles
 
@@ -144,6 +151,7 @@ module Parse
 @docs getRole
 @docs deleteRole
 
+
 ## Updating roles
 
 @docs addUsers
@@ -151,11 +159,19 @@ module Parse
 @docs addRoles
 @docs deleteRoles
 
+
+# Config
+
+@docs getConfig
+@docs updateConfig
+
+
 # Analytics
 
 @docs Event
 @docs post
 @docs postAt
+
 
 # Cloud code
 
@@ -169,6 +185,7 @@ import Http exposing (Request)
 import Internal.ACL
 import Internal.Analytics
 import Internal.CloudCode
+import Internal.Config
 import Internal.Error
 import Internal.Object
 import Internal.ObjectId
@@ -179,8 +196,8 @@ import Internal.Role
 import Internal.Role
 import Internal.SessionToken
 import Internal.User
-import Json.Decode as Decode exposing (Decoder)
-import Json.Encode as Encode exposing (Value)
+import Json.Decode as Decode exposing (Decoder, Value)
+import Json.Encode as Encode
 import Parse.Decode as Decode
 import Task exposing (Task)
 
@@ -663,6 +680,24 @@ toTask =
 send : Config -> (Result Error a -> m) -> Request a -> Cmd m
 send =
     Internal.Request.send
+
+
+
+-- CONFIG
+
+
+{-| TODO
+-}
+getConfig : Decoder a -> Request a
+getConfig =
+    Internal.Config.getConfig
+
+
+{-| TODO
+-}
+updateConfig : List ( String, Value ) -> Request Bool
+updateConfig =
+    Internal.Config.updateConfig
 
 
 
