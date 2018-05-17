@@ -1,15 +1,51 @@
-module Internal.Request exposing (Request, request, toTask, send, postDecoder, putDecoder, requestWithAdditionalHeaders)
+module Internal.Request
+    exposing
+        ( Config
+        , simpleConfig
+        , Request
+        , request
+        , toTask
+        , send
+        , postDecoder
+        , putDecoder
+        , requestWithAdditionalHeaders
+        )
 
 import Date exposing (Date)
 import Http
-import Internal.Config as Config exposing (Config)
 import Internal.Error as Error exposing (Error)
 import Internal.ObjectId as ObjectId exposing (ObjectId)
-import Internal.SessionToken as SessionToken
+import Internal.SessionToken as SessionToken exposing (SessionToken)
 import Json.Decode as Decode exposing (Decoder, Value)
 import Json.Encode as Encode
 import Parse.Decode as Decode
 import Task exposing (Task)
+
+
+{-| -}
+type alias Config =
+    { serverUrl : String
+    , applicationId : String
+    , restAPIKey : Maybe String
+    , javascriptKey : Maybe String
+    , clientKey : Maybe String
+    , windowsKey : Maybe String
+    , masterKey : Maybe String
+    , sessionToken : Maybe SessionToken
+    }
+
+
+simpleConfig : String -> String -> Config
+simpleConfig serverUrl applicationId =
+    Config
+        serverUrl
+        applicationId
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
 
 
 type Request a

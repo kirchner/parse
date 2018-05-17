@@ -3,7 +3,6 @@ module Internal.Query exposing (..)
 
 import Dict exposing (Dict)
 import Http
-import Internal.Config exposing (Config)
 import Internal.Error exposing (Error)
 import Internal.Object exposing (Object)
 import Internal.Request as Requet exposing (Request, request)

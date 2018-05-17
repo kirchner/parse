@@ -169,7 +169,6 @@ import Http exposing (Request)
 import Internal.ACL
 import Internal.Analytics
 import Internal.CloudCode
-import Internal.Config
 import Internal.Error
 import Internal.Object
 import Internal.ObjectId
@@ -192,14 +191,14 @@ import Task exposing (Task)
 {-| TODO
 -}
 type alias Config =
-    Internal.Config.Config
+    Internal.Request.Config
 
 
 {-| TODO
 -}
 simpleConfig : String -> String -> Config
 simpleConfig =
-    Internal.Config.simpleConfig
+    Internal.Request.simpleConfig
 
 
 {-| TODO
