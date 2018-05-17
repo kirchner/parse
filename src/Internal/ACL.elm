@@ -1,6 +1,7 @@
 module Internal.ACL
     exposing
         ( ACL
+        , RoleName
         , acl
         , anybody
         , roles
@@ -12,7 +13,6 @@ module Internal.ACL
         , decode
         )
 
-import Internal.ACL.Types exposing (ACL(..), Role, RoleName)
 import Internal.ObjectId as ObjectId exposing (ObjectId)
 import Internal.ObjectId exposing (ObjectId)
 import Internal.Pointer as Pointer exposing (Pointer, pointer)
@@ -20,8 +20,16 @@ import Json.Decode as Decode exposing (Decoder, Value)
 import Json.Encode as Encode
 
 
-type alias ACL user =
-    Internal.ACL.Types.ACL user
+type ACL user
+    = ACL
+        { anybody : Permissions
+        , roles : List ( RoleName, Permissions )
+        , users : List ( Pointer user, Permissions )
+        }
+
+
+type alias RoleName =
+    String
 
 
 acl :
@@ -133,7 +141,13 @@ decode =
 
 
 type alias Permissions =
-    Internal.ACL.Types.Permissions
+    { get : Bool
+    , find : Bool
+    , write : Bool
+    , update : Bool
+    , delete : Bool
+    , addFields : Bool
+    }
 
 
 simple : { read : Bool, write : Bool } -> Permissions

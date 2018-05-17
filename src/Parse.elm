@@ -167,7 +167,6 @@ import Date exposing (Date)
 import Dict
 import Http exposing (Request)
 import Internal.ACL
-import Internal.ACL.Types
 import Internal.Analytics
 import Internal.CloudCode
 import Internal.Config
@@ -485,7 +484,7 @@ type alias ACL user =
 {-| TODO
 -}
 type alias RoleName =
-    Internal.ACL.Types.RoleName
+    Internal.ACL.RoleName
 
 
 {-| TODO

@@ -13,7 +13,6 @@ module Internal.Role
 
 import Date exposing (Date)
 import Internal.ACL as ACL exposing (ACL)
-import Internal.ACL.Types exposing (Role)
 import Internal.Object exposing (Object)
 import Internal.ObjectId as ObjectId exposing (ObjectId)
 import Internal.Pointer as Pointer exposing (Pointer)
@@ -27,11 +26,9 @@ import Parse.Encode as Encode
 
 
 type alias Role user =
-    Internal.ACL.Types.Role user
-
-
-type alias RoleName =
-    Internal.ACL.Types.RoleName
+    { name : String
+    , acl : ACL user
+    }
 
 
 role :
