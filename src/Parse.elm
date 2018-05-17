@@ -59,6 +59,9 @@ module Parse
         , extended
         , function
         , job
+        , Event
+        , post
+        , postAt
         )
 
 {-|
@@ -148,6 +151,12 @@ module Parse
 @docs addRoles
 @docs deleteRoles
 
+# Analytics
+
+@docs Event
+@docs post
+@docs postAt
+
 # Cloud code
 
 @docs function
@@ -159,6 +168,7 @@ import Dict
 import Http exposing (Request)
 import Internal.ACL
 import Internal.ACL.Types
+import Internal.Analytics
 import Internal.CloudCode
 import Internal.Config
 import Internal.Error
@@ -655,6 +665,30 @@ toTask =
 send : Config -> (Result Error a -> m) -> Request a -> Cmd m
 send =
     Internal.Request.send
+
+
+
+-- ANALYTICS
+
+
+{-| TODO
+-}
+type alias Event a =
+    Internal.Analytics.Event a
+
+
+{-| TODO
+-}
+post : (Event a -> List ( String, Value )) -> Event a -> Request {}
+post =
+    Internal.Analytics.post
+
+
+{-| TODO
+-}
+postAt : (Event a -> List ( String, Value )) -> Date -> Event a -> Request {}
+postAt =
+    Internal.Analytics.postAt
 
 
 
