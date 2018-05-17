@@ -40,6 +40,20 @@ module Parse
         , Request
         , toTask
         , send
+        , Role
+        , createRole
+        , getRole
+          -- , updateRole
+        , deleteRole
+        , ACL
+        , RoleName
+        , acl
+        , anybody
+        , users
+        , roles
+        , Permissions
+        , simple
+        , extended
         )
 
 {-|
@@ -52,13 +66,20 @@ module Parse
 @docs SessionToken
 
 
+# Request
+
+@docs Request
+@docs send
+@docs toTask
+
+
 # REST Actions
 
 @docs create, get, update, delete
 
 @docs Object
 @docs ObjectId
-@docs equal
+
 
 # Pointers
 
@@ -97,12 +118,32 @@ module Parse
 
 @docs Error, Cause, code
 
+# ACL
+
+@docs ACL
+@docs RoleName
+@docs acl
+@docs anybody, users, roles
+
+@docs Permissions
+@docs simple
+@docs extended
+
+# Roles
+
+@docs Role
+@docs createRole
+@docs getRole
+@docs deleteRole
+
+
 -}
 
 import Date exposing (Date)
 import Dict
 import Http exposing (Request)
 import Internal.ACL
+import Internal.ACL.Types
 import Internal.Config
 import Internal.Error
 import Internal.Object
@@ -120,19 +161,24 @@ import Parse.Decode as Decode
 import Task exposing (Task)
 
 
----- CONFIGURATION
+---- CONFIG
 
 
+{-| TODO
+-}
 type alias Config =
     Internal.Config.Config
 
 
-{-| -}
-simpleConfig serverUrl applicationId =
+{-| TODO
+-}
+simpleConfig : String -> String -> Config
+simpleConfig =
     Internal.Config.simpleConfig
 
 
-{-| -}
+{-| TODO
+-}
 type alias SessionToken =
     Internal.SessionToken.SessionToken
 
@@ -141,20 +187,32 @@ type alias SessionToken =
 ---- OBJECTS
 
 
-{-| -}
+{-| TODO
+-}
 type alias ObjectId a =
     Internal.ObjectId.ObjectId a
 
 
-{-| -}
+{-| TODO
+-}
 type alias Object a =
     Internal.Object.Object a
 
 
+{-| TODO
+-}
+create :
+    String
+    -> (a -> Value)
+    -> a
+    -> Request { objectId : ObjectId a, createdAt : Date }
 create =
     Internal.Object.create
 
 
+{-| TODO
+-}
+get : String -> Decoder (Object a) -> ObjectId a -> Request (Object a)
 get =
     Internal.Object.get
 
@@ -167,10 +225,14 @@ doing full updates its type signature is
 update : String -> (a -> Value) -> ObjectId a -> a -> Request { updatedAt : Date }
 ```
 -}
+update : String -> (b -> Value) -> ObjectId a -> b -> Request { updatedAt : Date }
 update =
     Internal.Object.update
 
 
+{-| TODO
+-}
+delete : String -> ObjectId a -> Request {}
 delete =
     Internal.Object.delete
 
@@ -179,12 +241,14 @@ delete =
 -- POINTERS
 
 
-{-| -}
+{-| TODO
+-}
 type alias Pointer a =
     Internal.Pointer.Pointer a
 
 
-{-| -}
+{-| TODO
+-}
 pointer : String -> ObjectId a -> Pointer a
 pointer =
     Internal.Pointer.pointer
@@ -194,62 +258,119 @@ pointer =
 -- QUERY
 
 
+{-| TODO
+-}
 type alias Query =
     Internal.Query.Query
 
 
+{-| TODO
+
+@todo(aforemny) type Query a, query : Query a -> Request (List a)
+-}
+query : Decoder (Object a) -> Query -> Request (List (Object a))
 query =
     Internal.Query.query
 
 
+{-| TODO
+-}
+emptyQuery : String -> Query
 emptyQuery =
     Internal.Query.emptyQuery
 
 
+{-| TODO
+-}
+regex : String -> String -> Constraint
 regex =
     Internal.Query.regex
 
 
+{-| TODO
+-}
 type alias Constraint =
     Internal.Query.Constraint
 
 
+{-| TODO
+-}
+or : List Constraint -> Constraint
 or =
     Internal.Query.or
 
 
+{-| TODO
+-}
+and : List Constraint -> Constraint
 and =
     Internal.Query.and
 
 
+{-| TODO
+
+@todo(aforemny) notEqualTo : String -> Value -> Constraint
+-}
+notEqualTo : String -> String -> Constraint
 notEqualTo =
     Internal.Query.notEqualTo
 
 
+{-| TODO
+
+@todo(aforemny) lessThanOrEqualTo : String -> Value -> Constraint
+-}
+lessThanOrEqualTo : String -> Float -> Constraint
 lessThanOrEqualTo =
     Internal.Query.lessThanOrEqualTo
 
 
+{-| TODO
+
+@todo(aforemny) lessThan : String -> Value -> Constraint
+-}
+lessThan : String -> Float -> Constraint
 lessThan =
     Internal.Query.lessThan
 
 
+{-| TODO
+
+@todo(aforemny) greaterThanOrEqualTo : String -> Value -> Constraint
+-}
+greaterThanOrEqualTo : String -> Float -> Constraint
 greaterThanOrEqualTo =
     Internal.Query.greaterThanOrEqualTo
 
 
+{-| TODO
+
+@todo(aforemny) greaterThan : String -> Value -> Constraint
+-}
+greaterThan : String -> Float -> Constraint
 greaterThan =
     Internal.Query.greaterThan
 
 
+{-| TODO
+-}
+exists : String -> Constraint
 exists =
     Internal.Query.exists
 
 
+{-| TODO
+
+@todo(aforemny) equalTo : String -> Value -> Constraint
+-}
+equalTo : String -> String -> Constraint
 equalTo =
     Internal.Query.equalTo
 
 
+{-| TODO
+-}
+encodeQuery : Query -> Value
 encodeQuery =
     Internal.Query.encodeQuery
 
@@ -258,34 +379,69 @@ encodeQuery =
 -- USER
 
 
+{-| TODO
+-}
+updateUser : (user -> Value) -> ObjectId user -> user -> Request { updatedAt : Date }
 updateUser =
     Internal.User.updateUser
 
 
+{-| TODO
+
+@todo(aforemny) signUp : (user -> Value) -> { user | username : String, password : String } -> Request { objectId : ObjectId user, createdAt : Date, sessionToken : SessionToken }
+-}
+signUp :
+    (user -> List ( String, Value ))
+    -> String
+    -> String
+    -> user
+    -> Request { objectId : ObjectId user, createdAt : Date, sessionToken : SessionToken }
 signUp =
     Internal.User.signUp
 
 
+{-| TODO
+-}
+logIn :
+    Decoder (Object a)
+    -> String
+    -> String
+    -> Request { user : Object a, sessionToken : SessionToken }
 logIn =
     Internal.User.logIn
 
 
+{-| TODO
+-}
+passwordResetRequest : String -> Request {}
 passwordResetRequest =
     Internal.User.passwordResetRequest
 
 
+{-| TODO
+-}
+emailVerificationRequest : String -> Request {}
 emailVerificationRequest =
     Internal.User.emailVerificationRequest
 
 
+{-| TODO
+-}
+deleteUser : ObjectId a -> Request {}
 deleteUser =
     Internal.User.deleteUser
 
 
+{-| TODO
+-}
+getUser : Decoder (Object a) -> ObjectId a -> Request (Object a)
 getUser =
     Internal.User.getUser
 
 
+{-| TODO
+-}
+getCurrentUser : Decoder (Object a) -> Request (Object a)
 getCurrentUser =
     Internal.User.getCurrentUser
 
@@ -294,54 +450,142 @@ getCurrentUser =
 -- ROLES
 
 
+{-| TODO
+-}
 type alias ACL user =
     Internal.ACL.ACL user
 
 
+{-| TODO
+-}
+type alias RoleName =
+    Internal.ACL.Types.RoleName
+
+
+{-| TODO
+-}
+acl :
+    { anybody : Permissions
+    , users : List ( Pointer user, Permissions )
+    , roles : List ( RoleName, Permissions )
+    }
+    -> ACL user
+acl =
+    Internal.ACL.acl
+
+
+{-| TODO
+-}
+anybody : ACL user -> Permissions
 anybody =
     Internal.ACL.anybody
 
 
+{-| TODO
+-}
+users : ACL user -> List ( Pointer user, Permissions )
+users =
+    Internal.ACL.users
+
+
+{-| TODO
+-}
+roles : ACL user -> List ( RoleName, Permissions )
 roles =
     Internal.ACL.roles
 
 
+{-| TODO
+-}
 type alias Permissions =
     Internal.ACL.Permissions
 
 
+{-| TODO
+-}
+simple : { read : Bool, write : Bool } -> Permissions
 simple =
     Internal.ACL.simple
 
 
+{-| TODO
+-}
+extended :
+    { get : Bool
+    , find : Bool
+    , write : Bool
+    , update : Bool
+    , delete : Bool
+    , addFields : Bool
+    }
+    -> Permissions
 extended =
     Internal.ACL.extended
 
 
+{-| TODO
+-}
 type alias Role user =
     Internal.Role.Role user
 
 
+{-| TODO
+-}
 role =
     Internal.Role.role
 
 
+{-| TODO
+
+@todo(aforemny) Does not make sense:
+-}
+createRole :
+    Role user
+    -> List (Pointer user)
+    -> List (Pointer (Role user))
+    -> Request { objectId : ObjectId (Role user), createdAt : Date }
 createRole =
     Internal.Role.createRole
+
+
+{-| TODO
+-}
+getRole : ObjectId (Role user) -> Request (Object (Role user))
+getRole =
+    Internal.Role.getRole
+
+
+
+--updateRole =
+--    Internal.Role.updateRole
+
+
+{-| TODO
+-}
+deleteRole : ObjectId (Role user) -> Request {}
+deleteRole =
+    Internal.Role.deleteRole
 
 
 
 -- ERROR
 
 
+{-| TODO
+-}
 type alias Error =
     Internal.Error.Error
 
 
+{-| TODO
+-}
 type alias Cause =
     Internal.Error.Cause
 
 
+{-| TODO
+-}
+code : Cause -> Int
 code =
     Internal.Error.code
 
@@ -350,13 +594,21 @@ code =
 -- REQUEST
 
 
+{-| TODO
+-}
 type alias Request a =
     Internal.Request.Request a
 
 
+{-| TODO
+-}
+toTask : Config -> Request a -> Task Error a
 toTask =
     Internal.Request.toTask
 
 
+{-| TODO
+-}
+send : Config -> (Result Error a -> m) -> Request a -> Cmd m
 send =
     Internal.Request.send

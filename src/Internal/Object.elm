@@ -34,7 +34,7 @@ get className objectDecoder objectId =
         }
 
 
-update : String -> (a -> Value) -> ObjectId a -> a -> Request { updatedAt : Date }
+update : String -> (b -> Value) -> ObjectId a -> b -> Request { updatedAt : Date }
 update className encodeObject objectId object =
     request
         { method = "PUT"

@@ -12,7 +12,6 @@ import Json.Encode as Encode
 import Parse.Decode as Decode
 
 
-{-| -}
 signUp :
     (user -> List ( String, Value ))
     -> String
@@ -66,7 +65,6 @@ signUp encodeUser username password user =
             }
 
 
-{-| -}
 logIn :
     Decoder user
     -> String
@@ -104,29 +102,26 @@ logIn userDecoder username password =
             }
 
 
-{-| -}
-emailVerificationRequest : String -> Request ()
+emailVerificationRequest : String -> Request {}
 emailVerificationRequest email =
     request
         { method = "POST"
         , endpoint = "/verificationEmailRequest"
         , body = Nothing
-        , decoder = Decode.succeed ()
+        , decoder = Decode.succeed {}
         }
 
 
-{-| -}
-passwordResetRequest : String -> Request ()
+passwordResetRequest : String -> Request {}
 passwordResetRequest email =
     request
         { method = "POST"
         , endpoint = "/requestPasswordReset"
         , body = Nothing
-        , decoder = Decode.succeed ()
+        , decoder = Decode.succeed {}
         }
 
 
-{-| -}
 getUser : Decoder user -> ObjectId a -> Request user
 getUser userDecoder objectId =
     request
@@ -137,7 +132,6 @@ getUser userDecoder objectId =
         }
 
 
-{-| -}
 getCurrentUser : Decoder (Object user) -> Request (Object user)
 getCurrentUser userDecoder =
     request
@@ -148,7 +142,6 @@ getCurrentUser userDecoder =
         }
 
 
-{-| -}
 updateUser :
     (user -> Value)
     -> ObjectId a
@@ -165,12 +158,11 @@ updateUser encodeUser objectId user =
         }
 
 
-{-| -}
-deleteUser : ObjectId a -> Request ()
+deleteUser : ObjectId a -> Request {}
 deleteUser objectId =
     request
         { method = "DELETE"
         , endpoint = "/users/" ++ ObjectId.toString objectId
         , body = Nothing
-        , decoder = Decode.succeed ()
+        , decoder = Decode.succeed {}
         }

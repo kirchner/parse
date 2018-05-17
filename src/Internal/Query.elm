@@ -1,11 +1,11 @@
 module Internal.Query exposing (..)
 
-{-| -}
 
 import Dict exposing (Dict)
 import Http
 import Internal.Config exposing (Config)
 import Internal.Error exposing (Error)
+import Internal.Object exposing (Object)
 import Internal.Request as Requet exposing (Request, request)
 import Json.Decode as Decode exposing (Decoder, Value)
 import Json.Encode as Encode
@@ -13,9 +13,9 @@ import Task exposing (Task)
 
 
 query :
-    Decoder object
+    Decoder (Object a)
     -> Query
-    -> Request (List object)
+    -> Request (List (Object a))
 query objectDecoder query =
     request
         { method = "GET"
@@ -25,7 +25,6 @@ query objectDecoder query =
         }
 
 
-{-| -}
 type alias Query =
     { className : String
     , whereClause :
@@ -42,7 +41,6 @@ type alias Query =
     }
 
 
-{-| -}
 emptyQuery : String -> Query
 emptyQuery className =
     { className = className
@@ -56,7 +54,6 @@ emptyQuery className =
     }
 
 
-{-| -}
 encodeQuery : Query -> Value
 encodeQuery query =
     let
@@ -98,7 +95,6 @@ encodeQuery query =
             |> Encode.object
 
 
-{-| -}
 type Constraint
     = And (List Constraint)
     | Or (List Constraint)
@@ -126,9 +122,6 @@ type FieldConstraint
    $all         Contains all of the given values
    $text        Performs a full text search on indexed fields
 -}
-
-
-{-| -}
 and : List Constraint -> Constraint
 and constraints =
     let
@@ -182,55 +175,46 @@ and constraints =
             |> And
 
 
-{-| -}
 or : List Constraint -> Constraint
 or =
     Or
 
 
-{-| -}
 exists : String -> Constraint
 exists fieldName =
     Field fieldName [ Exists ]
 
 
-{-| -}
 equalTo : String -> String -> Constraint
 equalTo fieldName =
     Field fieldName << List.singleton << EqualTo
 
 
-{-| -}
 notEqualTo : String -> String -> Constraint
 notEqualTo fieldName =
     Field fieldName << List.singleton << NotEqualTo
 
 
-{-| -}
 lessThan : String -> Float -> Constraint
 lessThan fieldName =
     Field fieldName << List.singleton << LessThan
 
 
-{-| -}
 lessThanOrEqualTo : String -> Float -> Constraint
 lessThanOrEqualTo fieldName =
     Field fieldName << List.singleton << LessThanOrEqualTo
 
 
-{-| -}
 greaterThan : String -> Float -> Constraint
 greaterThan fieldName =
     Field fieldName << List.singleton << GreaterThan
 
 
-{-| -}
 greaterThanOrEqualTo : String -> Float -> Constraint
 greaterThanOrEqualTo fieldName =
     Field fieldName << List.singleton << GreaterThanOrEqualTo
 
 
-{-| -}
 regex : String -> String -> Constraint
 regex fieldName =
     Field fieldName << List.singleton << Regex
