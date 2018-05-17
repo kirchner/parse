@@ -1,11 +1,14 @@
 module Internal.Role
     exposing
-        ( Role
-        , role
+        ( addRoles
+        , addUsers
         , createRole
-        , getRole
-        -- , updateRole
         , deleteRole
+        , deleteRoles
+        , deleteUsers
+        , getRole
+        , role
+        , Role
         )
 
 import Date exposing (Date)
@@ -25,6 +28,10 @@ import Parse.Encode as Encode
 
 type alias Role user =
     Internal.ACL.Types.Role user
+
+
+type alias RoleName =
+    Internal.ACL.Types.RoleName
 
 
 role :
@@ -119,3 +126,69 @@ deleteRole objectId =
         , body = Nothing
         , decoder = Decode.succeed {}
         }
+
+
+addUsers : ObjectId (Role user) -> List (Pointer user) -> Request { updatedAt : Date }
+addUsers objectId users =
+    request
+        { method = "PUT"
+        , endpoint = "/roles/" ++ ObjectId.toString objectId
+        , body = Just (Encode.object [ ( "users", addRelation "_User" users ) ])
+        , decoder = Request.putDecoder
+        }
+
+
+deleteUsers : ObjectId (Role user) -> List (Pointer user) -> Request { updatedAt : Date }
+deleteUsers objectId users =
+    request
+        { method = "PUT"
+        , endpoint = "/roles/" ++ ObjectId.toString objectId
+        , body = Just (Encode.object [ ( "users", removeRelation "_User" users ) ])
+        , decoder = Request.putDecoder
+        }
+
+
+addRoles :
+    ObjectId (Role user)
+    -> List (Pointer (Role user))
+    -> Request { updatedAt : Date }
+addRoles objectId roles =
+    request
+        { method = "PUT"
+        , endpoint = "/roles/" ++ ObjectId.toString objectId
+        , body = Just (Encode.object [ ( "roles", addRelation "_Role" roles ) ])
+        , decoder = Request.putDecoder
+        }
+
+
+deleteRoles :
+    ObjectId (Role user)
+    -> List (Pointer (Role user))
+    -> Request { updatedAt : Date }
+deleteRoles objectId roles =
+    request
+        { method = "PUT"
+        , endpoint = "/roles/" ++ ObjectId.toString objectId
+        , body = Just (Encode.object [ ( "roles", removeRelation "_Role" roles ) ])
+        , decoder = Request.putDecoder
+        }
+
+
+{-| @todo(aforemny) Move to Pointer
+-}
+addRelation : String -> List (Pointer a) -> Value
+addRelation className pointers =
+    Encode.object
+        [ ( "__op", Encode.string "AddRelation" )
+        , ( "objects", Encode.list (List.map (Encode.pointer className) pointers) )
+        ]
+
+
+{-| @todo(aforemny) Move to Pointer
+-}
+removeRelation : String -> List (Pointer a) -> Value
+removeRelation className pointers =
+    Encode.object
+        [ ( "__op", Encode.string "RemoveRelation" )
+        , ( "objects", Encode.list (List.map (Encode.pointer className) pointers) )
+        ]

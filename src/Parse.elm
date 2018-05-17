@@ -43,7 +43,10 @@ module Parse
         , Role
         , createRole
         , getRole
-          -- , updateRole
+        , addUsers
+        , deleteUsers
+        , addRoles
+        , deleteRoles
         , deleteRole
         , ACL
         , RoleName
@@ -136,7 +139,12 @@ module Parse
 @docs getRole
 @docs deleteRole
 
+## Updating roles
 
+@docs addUsers
+@docs deleteUsers
+@docs addRoles
+@docs deleteRoles
 -}
 
 import Date exposing (Date)
@@ -536,8 +544,6 @@ role =
 
 
 {-| TODO
-
-@todo(aforemny) Does not make sense:
 -}
 createRole :
     Role user
@@ -555,9 +561,38 @@ getRole =
     Internal.Role.getRole
 
 
+{-| TODO
+-}
+addUsers : ObjectId (Role user) -> List (Pointer user) -> Request { updatedAt : Date }
+addUsers =
+    Internal.Role.addUsers
 
---updateRole =
---    Internal.Role.updateRole
+
+{-| TODO
+-}
+deleteUsers : ObjectId (Role user) -> List (Pointer user) -> Request { updatedAt : Date }
+deleteUsers =
+    Internal.Role.addUsers
+
+
+{-| TODO
+-}
+addRoles :
+    ObjectId (Role user)
+    -> List (Pointer (Role user))
+    -> Request { updatedAt : Date }
+addRoles =
+    Internal.Role.addRoles
+
+
+{-| TODO
+-}
+deleteRoles :
+    ObjectId (Role user)
+    -> List (Pointer (Role user))
+    -> Request { updatedAt : Date }
+deleteRoles =
+    Internal.Role.addRoles
 
 
 {-| TODO
