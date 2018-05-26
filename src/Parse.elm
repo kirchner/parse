@@ -68,6 +68,15 @@ module Parse
         , geoPoint
         , latitude
         , longitude
+        , Session
+        , createSession
+        , getSession
+        , updateSession
+        , getSessions
+        , deleteSession
+        , CreatedWith
+        , Action
+        , AuthProvider
         )
 
 {-|
@@ -126,6 +135,19 @@ module Parse
 @docs emailVerificationRequest, passwordResetRequest
 
 @docs getUser, getCurrentUser, updateUser, deleteUser
+
+
+# Sessions
+
+@docs Session
+@docs createSession
+@docs getSession
+@docs updateSession
+@docs getSessions
+@docs deleteSession
+@docs CreatedWith
+@docs Action
+@docs AuthProvider
 
 
 # Errors
@@ -207,6 +229,7 @@ import Internal.Query
 import Internal.Request
 import Internal.Role
 import Internal.Role
+import Internal.Session
 import Internal.SessionToken
 import Internal.User
 import Json.Decode as Decode exposing (Decoder, Value)
@@ -498,6 +521,77 @@ getUser =
 getCurrentUser : Decoder (Object a) -> Request (Object a)
 getCurrentUser =
     Internal.User.getCurrentUser
+
+
+-- SESSIONS
+
+
+
+{-| TODO
+-}
+type alias Session user =
+    Internal.Session.Session user
+
+
+{-| TODO
+-}
+createSession :
+    Session user
+    -> Request
+        { createdAt : Date
+        , createdWith : CreatedWith
+        , objectId : ObjectId (Session user)
+        , restricted : Bool
+        , sessionToken : SessionToken
+        }
+createSession =
+    Internal.Session.createSession
+
+
+{-| TODO
+-}
+getSession : ObjectId (Session user) -> Request (Object (Session user))
+getSession =
+    Internal.Session.getSession
+
+
+{-| TODO
+-}
+updateSession : (b -> Value) -> ObjectId a -> b -> Request { updatedAt : Date }
+updateSession =
+    Internal.Session.updateSession
+
+
+{-| TODO
+-}
+getSessions : Request (List (Object (Session user)))
+getSessions =
+    Internal.Session.getSessions
+
+
+{-| TODO
+-}
+deleteSession : ObjectId (Session user) -> Request {}
+deleteSession =
+    Internal.Session.deleteSession
+
+
+{-| TODO
+-}
+type alias CreatedWith =
+    Internal.Session.CreatedWith
+
+
+{-| TODO
+-}
+type alias Action =
+    Internal.Session.Action
+
+
+{-| TODO
+-}
+type alias AuthProvider =
+    Internal.Session.AuthProvider
 
 
 
