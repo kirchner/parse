@@ -77,6 +77,14 @@ module Parse
         , CreatedWith
         , Action
         , AuthProvider
+        , ContentType
+        , File
+        , name
+        , url
+        , encodeFile
+        , fileDecoder
+        , uploadFile
+        , deleteFile
         )
 
 {-|
@@ -186,6 +194,18 @@ module Parse
 @docs deleteRoles
 
 
+# Files
+
+@docs File
+@docs name
+@docs url
+@docs encodeFile
+@docs fileDecoder
+@docs ContentType
+@docs uploadFile
+@docs deleteFile
+
+
 # GeoPoints
 
 @docs GeoPoint
@@ -221,6 +241,7 @@ import Internal.Analytics
 import Internal.CloudCode
 import Internal.Config
 import Internal.Error
+import Internal.File
 import Internal.GeoPoint
 import Internal.Object
 import Internal.ObjectId
@@ -787,6 +808,63 @@ toTask =
 send : Config -> (Result Error a -> m) -> Request a -> Cmd m
 send =
     Internal.Request.send
+
+
+-- FILES
+
+{-| TODO
+-}
+type alias File =
+    Internal.File.File
+
+
+
+{-| TODO
+-}
+name : File -> String
+name =
+    Internal.File.name
+
+
+{-| TODO
+-}
+url : File -> String
+url =
+    Internal.File.url
+
+
+{-| TODO
+-}
+encodeFile : File -> Value
+encodeFile =
+    Internal.File.encodeFile
+
+
+{-| TODO
+-}
+fileDecoder : Decoder File
+fileDecoder =
+    Internal.File.fileDecoder
+
+
+{-| TODO
+-}
+type alias ContentType =
+    Internal.File.ContentType
+
+
+{-| TODO
+-}
+uploadFile : String -> ContentType -> Value -> Request File
+uploadFile =
+    Internal.File.uploadFile
+
+
+{-| TODO
+-}
+deleteFile : File -> Request {}
+deleteFile =
+    Internal.File.deleteFile
 
 
 
